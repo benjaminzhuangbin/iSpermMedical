@@ -1,96 +1,78 @@
 #!/usr/bin/env python3
 """
-Composite product image — preserves original photo content exactly.
-
-Strategy:
-  1. Use image2 as the base canvas (keeps monitor hardware, stand, lighting, shadows).
-  2. Replace ONLY the monitor screen pixels with image3.
-  3. Replace the left instrument area with image1 (gentle bg removal, no re-lighting).
+Composite: image2 base + image1 instrument + image3 on monitor screen.
+- image2 is the BASE — monitor hardware/bezel/stand/shadows kept 100% intact
+- Screen interior pixels replaced with image3 (software UI)
+- image1 replaces left instrument using edge-guided watershed segmentation
+- Zero content modification to image1 or image3
 """
-
 from __future__ import annotations
-
 import argparse
-from collections import deque
 from pathlib import Path
-
+import cv2
 import numpy as np
 from PIL import Image
+from scipy.ndimage import uniform_filter1d
+
+# ── Screen coordinates measured from image2.png (800×337) ─────────────────────
+SCREEN_BOX   = (468, 52, 774, 242)   # screen interior, inside bezels
+CLEAR_BOX    = (0, 0, 462, 337)      # left zone to clear
+INST_ZONE    = (8, 0, 462, 337)      # where to place instrument
+MONITOR_TOP  = 34                    # monitor top y in image2
+MONITOR_BOT  = 307                   # monitor bottom y (base of stand)
 
 
-# Measured from image2.png (800×337)
-LEFT_INSTRUMENT_BOX = (20, 22, 384, 323)
-SCREEN_BOX = (445, 45, 764, 254)
-MONITOR_HEIGHT = 307 - 34
+def extract_instrument(path: Path) -> Image.Image:
+    """
+    Edge-guided watershed + largest-component cleanup.
+    Preserves original pixel colors; only background is made transparent.
+    """
+    img_bgr = cv2.imread(str(path))
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    h, w = img_bgr.shape[:2]
+    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+
+    # --- Watershed ---
+    markers = np.zeros((h, w), dtype=np.int32)
+    b = 5
+    markers[:b,:]=1; markers[h-b:,:]=1; markers[:,:b]=1; markers[:,w-b:]=1
+    dark = (gray < 60)
+    fg_seed = cv2.dilate(dark.astype(np.uint8)*255, np.ones((15,15),np.uint8))
+    markers[fg_seed > 0] = 2
+    cv2.watershed(img_bgr, markers)
+    fg = (markers == 2).astype(np.uint8) * 255
+    fg = cv2.morphologyEx(fg, cv2.MORPH_CLOSE, np.ones((30,30),np.uint8))
+    fg = cv2.morphologyEx(fg, cv2.MORPH_DILATE, np.ones((8,8),np.uint8))
+
+    # --- Keep largest connected component ---
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(fg, connectivity=8)
+    largest = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+    clean = np.where(labels == largest, 255, 0).astype(np.uint8)
+
+    # --- Clip right side row-by-row based on front panel boundary ---
+    body_right = np.zeros(h, dtype=int)
+    for y in range(h):
+        cols = np.where(dark[y,:])[0]
+        body_right[y] = min(cols.max() + 60, w-1) if len(cols) else w-1
+    body_right = uniform_filter1d(body_right.astype(float), size=40).astype(int)
+    for y in range(h):
+        clean[y, body_right[y]:] = 0
+    clean[:, :8] = 0
+
+    clean = cv2.morphologyEx(clean, cv2.MORPH_CLOSE, np.ones((10,10),np.uint8))
+    clean = cv2.GaussianBlur(clean, (13,13), 0)
+
+    rgba = np.dstack([img_rgb, clean])
+    return Image.fromarray(rgba, "RGBA")
 
 
-def load_rgb(path: Path) -> Image.Image:
-    return Image.open(path).convert("RGB")
-
-
-def load_rgba(path: Path) -> Image.Image:
-    img = Image.open(path)
-    return img.convert("RGBA") if img.mode != "RGBA" else img
-
-
-def upscale_box(box: tuple[int, int, int, int], factor: int) -> tuple[int, int, int, int]:
-    return tuple(v * factor for v in box)
-
-
-def remove_instrument_background(img: Image.Image, tolerance: float = 22.0) -> Image.Image:
-    """Flood-fill background removal; preserves rear shading and floor reflection."""
-    rgb = np.array(img.convert("RGB"))
-    h, w = rgb.shape[:2]
-    bg_mask = np.zeros((h, w), dtype=bool)
-    visited = np.zeros((h, w), dtype=bool)
-
-    def flood(seed_y: int, seed_x: int) -> None:
-        queue: deque[tuple[int, int]] = deque([(seed_y, seed_x)])
-        ref = rgb[seed_y, seed_x].astype(np.float32)
-        visited[seed_y, seed_x] = True
-        bg_mask[seed_y, seed_x] = True
-        while queue:
-            cy, cx = queue.popleft()
-            for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
-                if 0 <= ny < h and 0 <= nx < w and not visited[ny, nx]:
-                    if np.linalg.norm(rgb[ny, nx].astype(np.float32) - ref) < tolerance:
-                        visited[ny, nx] = True
-                        bg_mask[ny, nx] = True
-                        queue.append((ny, nx))
-
-    for sy, sx in ((0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)):
-        if not visited[sy, sx]:
-            flood(sy, sx)
-
-    alpha = np.where(bg_mask, 0, 255).astype(np.uint8)
-    return Image.fromarray(np.dstack([rgb, alpha]), "RGBA")
-
-
-def clear_region(base: Image.Image, box: tuple[int, int, int, int]) -> None:
-    x0, y0, x1, y1 = box
-    base.paste(Image.new("RGB", (x1 - x0, y1 - y0), (255, 255, 255)), (x0, y0))
-
-
-def paste_cover(base: Image.Image, overlay: Image.Image, box: tuple[int, int, int, int]) -> None:
-    """Fill screen area with software screenshot (cover, center-crop)."""
-    x0, y0, x1, y1 = box
-    tw, th = x1 - x0, y1 - y0
-    sw, sh = overlay.size
-    scale = max(tw / sw, th / sh)
-    resized = overlay.resize((int(sw * scale), int(sh * scale)), Image.Resampling.LANCZOS)
-    rw, rh = resized.size
-    cropped = resized.crop(((rw - tw) // 2, (rh - th) // 2, (rw + tw) // 2, (rh + th) // 2))
-    base.paste(cropped, (x0, y0))
-
-
-def paste_instrument(base: Image.Image, instrument: Image.Image, box: tuple[int, int, int, int], target_height: int) -> None:
-    x0, y0, x1, y1 = box
-    scale = target_height / instrument.size[1]
-    nw, nh = int(instrument.size[0] * scale), target_height
-    resized = instrument.resize((nw, nh), Image.Resampling.LANCZOS)
-    px = x0 + max(0, ((x1 - x0) - nw) // 2)
-    py = y1 - nh
-    base.paste(resized, (px, py), resized)
+def fit_cover(img: Image.Image, tw: int, th: int) -> Image.Image:
+    sw, sh = img.size
+    scale = max(tw/sw, th/sh)
+    nw, nh = int(sw*scale+.5), int(sh*scale+.5)
+    r = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    x0, y0 = (nw-tw)//2, (nh-th)//2
+    return r.crop((x0, y0, x0+tw, y0+th))
 
 
 def composite(
@@ -98,50 +80,60 @@ def composite(
     template_path: Path,
     software_path: Path,
     output_path: Path,
-    scale_factor: int = 4,
-    instrument_scale: float = 0.84,
+    scale: int = 4,
+    inst_ratio: float = 0.83,
 ) -> Path:
-    template = load_rgb(template_path)
+    # ── Load & scale up ────────────────────────────────────────────────────────
+    template = Image.open(template_path).convert("RGB")
     tw, th = template.size
-    base = template.resize((tw * scale_factor, th * scale_factor), Image.Resampling.LANCZOS)
+    base = template.resize((tw*scale, th*scale), Image.Resampling.LANCZOS)
 
-    instrument = remove_instrument_background(load_rgba(instrument_path))
-    software = load_rgb(software_path)
+    S = lambda box: tuple(v*scale for v in box)
 
-    left_box = upscale_box(LEFT_INSTRUMENT_BOX, scale_factor)
-    screen_box = upscale_box(SCREEN_BOX, scale_factor)
+    # ── Step 1: Paste software UI onto monitor screen ──────────────────────────
+    sx0,sy0,sx1,sy1 = S(SCREEN_BOX)
+    software = Image.open(software_path).convert("RGB")
+    base.paste(fit_cover(software, sx1-sx0, sy1-sy0), (sx0,sy0))
 
-    clear_region(base, left_box)
-    paste_cover(base, software, screen_box)
+    # ── Step 2: Clear left instrument zone ────────────────────────────────────
+    cx0,cy0,cx1,cy1 = S(CLEAR_BOX)
+    base.paste(Image.new("RGB",(cx1-cx0,cy1-cy0),(255,255,255)),(cx0,cy0))
 
-    inst_h = int(MONITOR_HEIGHT * scale_factor * instrument_scale)
-    paste_instrument(base, instrument, left_box, inst_h)
+    # ── Step 3: Paste instrument ───────────────────────────────────────────────
+    inst = extract_instrument(instrument_path)
+    monitor_h = (MONITOR_BOT - MONITOR_TOP) * scale
+    target_h = int(monitor_h * inst_ratio)
+    iw, ih = inst.size
+    target_w = int(iw * target_h / ih)
+    inst = inst.resize((target_w, target_h), Image.Resampling.LANCZOS)
+
+    iz_x0,iz_y0,iz_x1,iz_y1 = S(INST_ZONE)
+    # Center in zone, bottom-aligned with image2 ground line
+    px = iz_x0 + max(0, (iz_x1-iz_x0-target_w)//2)
+    ground_y = int(MONITOR_BOT * scale * 0.96)
+    py = ground_y - target_h
+    base.paste(inst, (px, py), inst)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    base.save(output_path, quality=96)
+    base.save(str(output_path), quality=96)
     return output_path
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--instrument", default="image1.png")
-    parser.add_argument("--template", default="image2.png")
-    parser.add_argument("--software", default="image3.png")
-    parser.add_argument("--output", default="isperm-product-composite.png")
-    parser.add_argument("--instrument-scale", type=float, default=0.84)
-    parser.add_argument("--scale", type=int, default=4)
-    args = parser.parse_args()
-
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--instrument", default="image1.png")
+    p.add_argument("--template",   default="image2.png")
+    p.add_argument("--software",   default="image3.png")
+    p.add_argument("--output",     default="isperm-product-composite.png")
+    p.add_argument("--scale",      type=int,   default=4)
+    p.add_argument("--inst-ratio", type=float, default=0.83)
+    args = p.parse_args()
     out = composite(
-        Path(args.instrument),
-        Path(args.template),
-        Path(args.software),
-        Path(args.output),
-        scale_factor=args.scale,
-        instrument_scale=args.instrument_scale,
+        Path(args.instrument), Path(args.template),
+        Path(args.software),   Path(args.output),
+        scale=args.scale, inst_ratio=args.inst_ratio,
     )
     print(f"Saved: {out}")
-
 
 if __name__ == "__main__":
     main()
