@@ -1,6 +1,6 @@
 # Nexus DX1 Manual Review Notes
 
-This file summarizes editorial and technical review findings from the available first draft manual material in the repository. The requested PDF file `Manual English Version-0.pdf` was not found in the GitHub repository at the time of review; the review below is based on the available `Manual English v0 - dd1.doc` content and extracted text.
+This file summarizes editorial and technical review findings from the first draft PDF manual `Manual English Version-0.pdf` and the available source draft material in the repository.
 
 ## Key Issues Found
 
@@ -65,7 +65,52 @@ Recommendation: use clear manual style:
 - "Check that the following items are included."
 - "Technical Specifications"
 
-### 6. Missing standard manual sections
+### 6. Numbering and table-of-contents issues
+
+Several sections in the PDF have numbering problems that should be corrected before release.
+
+Examples:
+
+- In the Analyze result section, subheadings appear as **7.1**, **7.2**, **7.3**, and **7.4** even though they are under section **4.2.2.7**.
+- In the Reports section, result subheadings appear as **4.1**, **4.2**, **4.3**, and **4.4**, which may be confused with earlier main sections.
+- Export steps start at **4** instead of **1**.
+- Some troubleshooting tables are broken across pages and become hard to read.
+
+Recommendation: regenerate section numbering and table formatting from a structured source file before exporting the final PDF.
+
+### 7. Reports section needs cleanup
+
+The Reports section is useful but contains a few wording and layout issues.
+
+Examples:
+
+- "Configuration options for review the reports data..." should be rewritten.
+- The Delete section contains an unrelated sentence: "The operator can review the recorded microscopic video..."
+- "Enter password 000000 (default)when prompted..." is missing a space.
+
+Recommendation: keep the workflow but revise the wording and layout for customer-facing clarity.
+
+### 8. Analyze section can be more specific
+
+The PDF includes useful detailed fields for patient and sample information, including:
+
+- Reference
+- Patient Name
+- Patient ID
+- Date of Birth / Age
+- Abstinence days
+- Sample ID
+- Liquefaction time
+- Liquefaction treatment
+- Visual appearance
+- Viscosity
+- pH
+- Ejaculate volume
+- Total sperm number calculated by the system
+
+Recommendation: keep these details in the APP manual, but clearly separate **Patient Information** and **Sample Information** fields.
+
+### 9. Missing standard manual sections
 
 The first draft would benefit from adding:
 
@@ -84,7 +129,7 @@ The first draft would benefit from adding:
 
 These sections were added in the optimized draft manual.
 
-### 7. Figures and captions
+### 10. Figures and captions
 
 The extracted draft contains many `[pic]` placeholders. Figures should be inserted with clear captions and cross-references.
 
@@ -94,7 +139,7 @@ Recommendation:
 - Avoid leaving `[pic]` placeholders in the customer-facing version.
 - Confirm all screenshots match the current released software UI.
 
-### 8. Accessories list needs final verification
+### 11. Accessories list needs final verification
 
 The draft accessory list should be checked against the final packing list. Items such as calibration slides, QC materials, connection cables, and USB flash disks may vary by configuration.
 
@@ -102,7 +147,7 @@ Recommendation: add wording such as:
 
 > The actual supplied accessories shall follow the packing list included with the instrument.
 
-### 9. LIS and PC connection claims need confirmation
+### 12. LIS and PC connection claims need confirmation
 
 The draft states that results, videos, images, and sessions are sent to LIS. This may be too broad if not all customers have LIS configured.
 
@@ -110,7 +155,7 @@ Recommendation: use conditional wording:
 
 > If LIS or PC workstation integration is configured, results may be transferred according to the installed software configuration.
 
-### 10. Service and password recovery limitations
+### 13. Service and password recovery limitations
 
 Password-related limitations and service contact guidance should be documented clearly. For example, if password recovery is unavailable from the user interface, the manual should instruct users to contact the distributor or service provider.
 

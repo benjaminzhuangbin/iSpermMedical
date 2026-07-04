@@ -73,6 +73,14 @@ In the **Sample Information** section, the operator may enter:
 - **Date of Birth / Age**
 - **Abstinence (days)**
 - **Sample ID**
+- **Liquefaction time**
+- **Liquefaction treatment**
+- **Visual appearance**
+- **Viscosity**
+- **pH**
+- **Ejaculate volume**
+
+Depending on the software screen and configuration, the system may also display **Total Sperm Number** calculated from the analysis result and entered sample volume.
 
 Sample information is optional. However, entering complete information is recommended when the result will be reviewed, printed, exported, or linked to external laboratory records.
 
@@ -121,14 +129,18 @@ The **Kinematics** tab displays sperm movement parameters calculated from the an
 
 Depending on system configuration, kinematic parameters may include:
 
-- VCL
-- VSL
-- VAP
-- LIN
-- STR
-- WOB
-- ALH
-- BCF
+- **DCL**: Distance along the curvilinear path
+- **DSL**: Distance along the straight-line path
+- **DAP**: Distance along the average path
+- **VCL**: Velocity along the curvilinear path
+- **VSL**: Velocity along the straight-line path
+- **VAP**: Velocity along the average path
+- **ALH**: Amplitude of lateral head displacement
+- **MAD**: Mean angular displacement
+- **BCF**: Beat-cross frequency
+- **LIN**: Linearity of the curvilinear path
+- **STR**: Straightness of the average path
+- **WOB**: Wobble, describing oscillation around the average path
 - Other movement-related parameters supported by the system
 
 These parameters help describe sperm movement pattern and trajectory characteristics.
@@ -142,9 +154,11 @@ Depending on the enabled analysis configuration, the system may provide informat
 - Normal sperm
 - Abnormal sperm
 - Head defects
+- Midpiece defects
 - Tail defects
 - Cytoplasmic residue
-- Droplet-related findings
+- TZI
+- SDI
 - Other morphology categories supported by Nexus DX1
 
 Morphology results should be reviewed according to the laboratory's validated procedures.
