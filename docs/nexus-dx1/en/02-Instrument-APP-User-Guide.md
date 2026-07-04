@@ -182,3 +182,165 @@ To retrieve a result:
 | The confirmation dialog appears before the operator is ready. | **Start** was tapped before information entry was completed. | Tap **NO**, complete or confirm the information, then tap **Start** again. |
 | Result fields are incomplete or unexpected. | Sample image, chamber loading, or analysis conditions may not be suitable. | Inspect the sample image again, prepare a new chamber if needed, and repeat the test according to laboratory procedure. |
 
+## Chapter 7. Reports
+
+### 7.1 Overview
+
+The **Reports** function is used to review, open, delete, and export completed test results. Each completed analysis is saved as a report record. The operator can review the digital result data, open the full report, play back the analysis video, delete selected records, or export reports to the USB flash disk supplied with the instrument.
+
+The Reports screen includes two main viewing modes:
+
+- **Digital Results**: Displays the report list and numerical result details.
+- **Video Playback**: Displays the recorded microscopic video of the selected test.
+
+The right-side function buttons include:
+
+- **Report List**
+- **Full Report**
+- **Delete**
+- **Export**
+
+### 7.2 Open the Reports Function
+
+1. Tap **Reports** on the left navigation bar.
+2. The system enters the Reports function area.
+3. Tap **Report List** if the report list is not already displayed.
+4. Confirm that **Digital Results** is selected at the top of the screen.
+
+The main area displays all saved test results in a list.
+
+**Figure 7-1. Reports screen - Report List and Digital Results**  
+*[Insert screenshot: report list showing saved test results]*
+
+### 7.3 Report List
+
+The **Report List** displays saved test records. Each row represents one completed test.
+
+Typical columns include:
+
+- **Ref.**
+- **Date**
+- **Time**
+- **Patient Name**
+- **Patient ID**
+- **CONC. Total (M/ml)**
+- **MOT Motile (%)**
+- **MOR Normal (%)**
+
+To select a report, tap one row in the list. The selected row is used for **Full Report**, **Delete**, and **Video Playback** operations.
+
+### 7.4 Open a Full Report
+
+To open the full report of a selected result:
+
+1. Enter **Reports**.
+2. Tap **Report List**.
+3. Select one report row from the list.
+4. Tap **Full Report** on the right side.
+
+The screen changes from the report list to the selected report's digital result view.
+
+**Figure 7-2. Full Report - Digital Results**  
+*[Insert screenshot: selected report digital result view]*
+
+### 7.5 Review Digital Result Data
+
+In the full report view, the patient and sample information is shown in the upper part of the screen. The digital result data is shown in the lower part of the screen.
+
+The operator can switch between the following result tabs:
+
+- **Conc. & Motility**
+- **Kinematics**
+- **Morphology**
+- **Graph**
+
+Tap each tab to review the corresponding result category for the selected test.
+
+#### 7.5.1 Conc. & Motility
+
+The **Conc. & Motility** tab displays concentration and motility results, such as total concentration, immotile sperm, motile sperm, percentage of total, WHO 6th Edition reference information, and confidence interval information where available.
+
+#### 7.5.2 Kinematics
+
+The **Kinematics** tab displays sperm motion parameters calculated by the system. These values describe the movement characteristics of the analyzed sperm cells.
+
+#### 7.5.3 Morphology
+
+The **Morphology** tab displays morphology-related analysis results for the selected test.
+
+#### 7.5.4 Graph
+
+The **Graph** tab displays graphical summaries of the selected result, such as motility and morphology charts.
+
+**Figure 7-3. Full Report - Graph tab**  
+*[Insert screenshot: graph view showing motility and morphology charts]*
+
+### 7.6 Video Playback
+
+The operator can review the recorded microscopic video for a selected test.
+
+To open video playback:
+
+1. Open **Reports**.
+2. Select a report from the report list, or open the report in **Full Report** view.
+3. Tap **Video Playback** at the top of the screen.
+
+The screen displays the microscopic video recorded during analysis.
+
+**Figure 7-4. Video Playback**  
+*[Insert screenshot: microscopic video playback view]*
+
+Use video playback to visually review the analyzed sample image. This function is helpful for record review, training, and troubleshooting.
+
+### 7.7 Delete a Report
+
+To delete a saved report:
+
+1. Tap **Reports** on the left navigation bar.
+2. Tap **Report List**.
+3. Select the report row that should be deleted.
+4. Tap **Delete** on the right side.
+5. Confirm the deletion if a confirmation message appears.
+
+> Caution: Deleted reports may not be recoverable. Confirm that the correct report is selected before deleting it.
+
+### 7.8 Export Reports to USB Flash Disk
+
+The **Export** function downloads saved report files to the USB flash disk supplied with the instrument.
+
+To export reports:
+
+1. Insert the USB flash disk supplied with the instrument into a USB port on the back of Nexus DX1.
+2. Tap **Reports** on the left navigation bar.
+3. Tap **Export** on the right side.
+4. When the password prompt appears, enter:
+
+   **000000**
+
+5. Confirm the export operation.
+6. Wait until the system finishes downloading the report files to the USB flash disk.
+7. Remove the USB flash disk only after the export is completed.
+
+> Note: Use the USB flash disk supplied with the instrument when exporting reports. Do not remove the USB flash disk during export.
+
+### 7.9 Recommended Operating Notes
+
+- Use **Report List** to locate saved test results.
+- Select the correct row before tapping **Full Report**, **Delete**, or **Video Playback**.
+- Use **Digital Results** to review numerical result data.
+- Use **Video Playback** to review the recorded microscopic video.
+- Insert the supplied USB flash disk before using **Export**.
+- Enter password **000000** when prompted during export.
+- Confirm that export is completed before removing the USB flash disk.
+
+### 7.10 Troubleshooting
+
+| Situation | Possible Cause | Recommended Action |
+| --- | --- | --- |
+| The expected report is not visible in the list. | The result may be listed under its automatically assigned reference number or another test time. | Check the **Ref.**, **Date**, and **Time** columns. |
+| Full Report does not open. | No report row is selected. | Select one report row, then tap **Full Report** again. |
+| The wrong report was opened. | A different row was selected in the report list. | Return to **Report List**, select the correct row, and tap **Full Report**. |
+| Video playback is not shown. | The operator is still in Digital Results view. | Tap **Video Playback** at the top of the screen. |
+| Export does not start. | USB flash disk is not inserted or not recognized. | Insert the supplied USB flash disk into the USB port on the back of the instrument, then try again. |
+| Password is requested during export. | Export is password protected. | Enter **000000**. |
+
