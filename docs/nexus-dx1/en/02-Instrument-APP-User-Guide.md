@@ -344,3 +344,93 @@ To export reports:
 | Export does not start. | USB flash disk is not inserted or not recognized. | Insert the supplied USB flash disk into the USB port on the back of the instrument, then try again. |
 | Password is requested during export. | Export is password protected. | Enter **000000**. |
 
+## Chapter 8. Users
+
+### 8.1 Overview
+
+The **Users** function is used to manage the instrument password and edit local instrument information. This information is stored and displayed on the instrument only.
+
+In the current software version, the information edited in this section is used for local reference and viewing only. It does not provide additional workflow, reporting, or remote management functions.
+
+### 8.2 Open the Users Function
+
+1. Tap **Users** on the left navigation bar.
+2. The system enters the **Password Management** screen.
+3. The right side of the screen displays brief notes for the current input area.
+
+**Figure 8-1. Users screen - Password Management**  
+*[Insert screenshot: Users screen showing Password Management and local information tabs]*
+
+### 8.3 Password Management
+
+The instrument password can be changed in the **Password Management** area.
+
+The default initial password is:
+
+**000000**
+
+To change the password:
+
+1. Tap **Users** on the left navigation bar.
+2. In the **Old password** field, enter the current password.
+   - For a new instrument or a password that has not been changed, enter **000000**.
+3. In the **New password** field, enter the new password.
+4. Tap **Confirm**.
+5. The system saves the new password.
+
+The password must use digital numbers. The note on the right side of the screen indicates that the password should contain **6 to 15 digits**.
+
+> Caution: Keep the new password in a safe place. If the password is changed and then lost, password recovery is not available from this function.
+
+### 8.4 Local Information
+
+The lower part of the Users screen allows the operator to edit four categories of local information:
+
+- **Company**
+- **Center**
+- **Laboratory**
+- **Technician**
+
+Tap the corresponding tab to enter or select information.
+
+This information is used only for local instrument information storage and viewing. It currently has no additional function.
+
+### 8.5 Edit Company Information
+
+1. Tap **Users**.
+2. Tap **Company**.
+3. Enter or select the company title.
+4. Confirm or save the information according to the screen prompt.
+
+The right-side note area displays brief guidance, such as:
+
+**"Enter or select Company Title"**
+
+### 8.6 Edit Center, Laboratory, and Technician Information
+
+To edit other local information:
+
+1. Tap **Users**.
+2. Tap **Center**, **Laboratory**, or **Technician**.
+3. Enter or select the required information.
+4. Confirm or save the information according to the screen prompt.
+
+The entered information is stored locally on the instrument.
+
+### 8.7 Recommended Operating Notes
+
+- The initial password is **000000**.
+- Change the password only when required by the laboratory or distributor.
+- Record the new password and keep it secure.
+- Use a 6 to 15 digit numeric password.
+- Local Company, Center, Laboratory, and Technician information is for instrument display and viewing only.
+
+### 8.8 Troubleshooting
+
+| Situation | Possible Cause | Recommended Action |
+| --- | --- | --- |
+| The password cannot be changed. | The old password may be incorrect. | Enter the current password again. If the password has never been changed, enter **000000** as the old password. |
+| The new password is not accepted. | The password format may be incorrect. | Use a numeric password with 6 to 15 digits. |
+| The operator forgot the changed password. | The password was changed and not recorded. | Contact the distributor or service provider. Password recovery is not available from this function. |
+| Local information has no visible effect on analysis. | The information is for local storage and viewing only. | Use this section only for local instrument information management. |
+
