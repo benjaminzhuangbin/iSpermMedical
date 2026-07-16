@@ -4,8 +4,13 @@ Medical instrument software workspace.
 
 ## Nexus ADB Watchdog
 
-Native Android daemon (C) that monitors TCP ADB on RK3288 / Android 5.1.1.
+Native Android daemons (C) that monitor TCP ADB on RK3288 / Android 5.1.1.
 
-**Project path:** [`NexusADBWatchdog/`](NexusADBWatchdog/)
+| Version | Path | Purpose |
+|---------|------|---------|
+| 1.0 | [`NexusADBWatchdog/`](NexusADBWatchdog/) | Basic monitor (adbd / port / ESTABLISHED) |
+| **1.5** | [`NexusADBWatchdog-1.5/`](NexusADBWatchdog-1.5/) | **Diagnostic data collection** (TCP state stats, clients, rotation) |
 
-See [`NexusADBWatchdog/README.md`](NexusADBWatchdog/README.md) for build, install, and usage.
+See each folder's `README.md` for build, install, and usage.
+
+**Run Version 1.5 from:** `NexusADBWatchdog-1.5/`
