@@ -1884,6 +1884,11 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		dAlphaDens = dAlpha/dRatio;
 
 		//静止目标结果计算
+		// 阀值说明（nStatus=-9）：
+		// 1) SParaInput.dShapeRatio < 0.8 ：输入期望长宽比过低，按非精子模式处理
+		// 2) nSampleType==3/4           ：checkSampleType 判为标粒/红细胞（或兜底“其他”）
+		// 兼容更小/更大真精子：优先扩 checkSampleType 的新鲜人精窗 + updateSpermRange(paraRangeTemp2)；
+		// 若改 0.8，须与下方 L1902 赋值处同步。详见 docs/nStatus-9-threshold-guide.md
 		if (nStatus != 1 || SParaInput.dShapeRatio < 0.8 || nSampleType == 3 || nSampleType == 4 || (nTotalSpermNum >100/(dAlphaDens+EPSINON)))
 		{
 			int nStatusTemp = 1;
@@ -1899,6 +1904,7 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 			dataOut->dTotaSpermDensity = dAlphaDens*nTotalSpermNum;//总密度
 
 
+			// 全文件唯一 nStatus=-9 赋值点；条件与上方静止分支入口一致（OR）
 			if (SParaInput.dShapeRatio < 0.8 || nSampleType == 3 || nSampleType == 4)
 			{
 				nStatus = -9;//样本可能为非精子目标
@@ -2032,6 +2038,8 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		 }
 
 		 // || nSpermIndex > 30,注：这个判断受样本具体情况影响，结果会有异常判断，暂时先不用
+		 // 分类阀值（会间接导致 nStatus=-9）：type3/4 → -9；type1 → -12；仅 type2 走完整精子活力分析
+		 // 新鲜人精窗(人-备男): AreaAve∈(11,35] 且 ShapeRatio∈[1.15,1.8)；出窗的真精子易落入 type3 兜底
 		 if ((pSSpermRange.dAreaAve > 35 && pSSpermRange.dShapeRatio > 2)||(pSSpermRange.dAreaAve > 40 && pSSpermRange.dShapeRatio > 2.8)||(pSSpermRange.dAreaAve > 60 && pSSpermRange.dShapeRatio > 2.5)||pSSpermRange.dAreaAve > 75)
 		 {
 			 nSampleType = 1;//干涸人精
@@ -2054,7 +2062,7 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		 }
 		 else
 		 {
-			 nSampleType = 3;//其他
+			 nSampleType = 3;//其他（偏椭圆但面积不在新鲜人精窗内 → 后续也会 nStatus=-9）
 		 }
 		 //test
 		 //nSampleType = 2;//新鲜人精
@@ -7568,6 +7576,8 @@ void updateSpermRange(ParaRange *pSAveSpermRange, const int nSampleType)
 	//注：以下参数基于三种类别各8份样本统计得到，date:2018.01.05
 	ParaRange paraRangeTemp;
 	ParaRange paraRangeTemp1 = {40, 110, 75, 9, 34, 21, 3.4, 9, 6.5, 3.3};//干涸人精
+	// 新鲜人精尺寸模板：{AreaMin,AreaMax,AreaAve, MajMin,MajMax,MajAve, MinMin,MinMax,MinAve, ShapeRatio}
+	// 兼容更小/更大精子时优先调此组；ABCD检出窗约为 [0.7*AreaMin, 2*AreaMax]
 	ParaRange paraRangeTemp2 = {11, 22, 16.8, 3.2, 7, 5.08, 2, 4.8, 3.95, 1.23};//新鲜人精
 	//ParaRange paraRangeTemp3 = {5, 30, 15, 2.5, 9.3, 4.4, 2.8, 4.8, 3.8, 1.15};//标粒，测试结果
 	ParaRange paraRangeTemp3 = {5, 150, 15, 2.5, 9.3, 4.4, 2.8, 4.8, 3.8, 1.15};//标粒，测试结果
