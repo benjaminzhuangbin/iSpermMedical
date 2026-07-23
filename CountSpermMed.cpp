@@ -441,6 +441,28 @@ using namespace cv;
 #define MAXPATHLENGTH 200//文件路径占用最长的字符数
 #define EPSINON 1e-9//系统精度，低于该值，认为为0
 
+// =============================================================================
+// 【放宽“非精子/-9”判定】一键可调参数（放宽=扩大接受区间；收紧=缩小接受区间）
+// 目标：更多“偏小/偏大/偏圆/偏长”的颗粒判为新鲜人精(nSampleType=2)，最终 nStatus=1
+// 旧值对照：输入形状0.8；面积(11,35]；形状[1.15,1.8)；检出模板 Area 11~22
+// =============================================================================
+#define NONSPERM_INPUT_SHAPE_MIN   0.50  // 原0.8；↓放宽（更低的输入dShapeRatio仍当精子流程）
+#define FRESH_SPERM_AREA_MIN       8.0   // 原11； ↓放宽（接受更小面积，pixel^2）
+#define FRESH_SPERM_AREA_MAX      50.0   // 原35； ↑放宽（接受更大面积，pixel^2）
+#define FRESH_SPERM_SHAPE_MIN      1.05  // 原1.15；↓放宽（接受更圆，长/短轴更接近1）
+#define FRESH_SPERM_SHAPE_MAX      2.10  // 原1.8； ↑放宽（接受更细长）
+// 新鲜人精检出模板（updateSpermRange paraRangeTemp2），与上窗配套放宽
+#define FRESH_TMPL_AREA_MIN        7.0   // 原11
+#define FRESH_TMPL_AREA_MAX       40.0   // 原22
+#define FRESH_TMPL_AREA_AVE       18.0   // 原16.8
+#define FRESH_TMPL_MAJ_MIN         2.8   // 原3.2
+#define FRESH_TMPL_MAJ_MAX        10.0   // 原7
+#define FRESH_TMPL_MAJ_AVE         5.5   // 原5.08
+#define FRESH_TMPL_MIN_MIN         1.8   // 原2
+#define FRESH_TMPL_MIN_MAX         6.0   // 原4.8
+#define FRESH_TMPL_MIN_AVE         4.0   // 原3.95
+#define FRESH_TMPL_SHAPE           1.15  // 原1.23；略降以兼容更圆目标
+
 #define COULOURCHOOSE 1
 #if (COULOURCHOOSE)
 #define ALIVECOlOUR (CV_RGB(255,0,0))//(CV_RGB(253,90,78))//红色，活动目标
@@ -1884,12 +1906,8 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		dAlphaDens = dAlpha/dRatio;
 
 		//静止目标结果计算
-		// 阀值说明（nStatus=-9）：
-		// 1) SParaInput.dShapeRatio < 0.8 ：输入期望长宽比过低，按非精子模式处理
-		// 2) nSampleType==3/4           ：checkSampleType 判为标粒/红细胞（或兜底“其他”）
-		// 兼容更小/更大真精子：优先扩 checkSampleType 的新鲜人精窗 + updateSpermRange(paraRangeTemp2)；
-		// 若改 0.8，须与下方 L1902 赋值处同步。详见 docs/nStatus-9-threshold-guide.md
-		if (nStatus != 1 || SParaInput.dShapeRatio < 0.8 || nSampleType == 3 || nSampleType == 4 || (nTotalSpermNum >100/(dAlphaDens+EPSINON)))
+		// nStatus=-9：输入形状 < NONSPERM_INPUT_SHAPE_MIN，或 nSampleType==3/4（见文件头放宽宏）
+		if (nStatus != 1 || SParaInput.dShapeRatio < NONSPERM_INPUT_SHAPE_MIN || nSampleType == 3 || nSampleType == 4 || (nTotalSpermNum >100/(dAlphaDens+EPSINON)))
 		{
 			int nStatusTemp = 1;
 			//nTypeDead = 1;
@@ -1905,7 +1923,7 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 
 
 			// 全文件唯一 nStatus=-9 赋值点；条件与上方静止分支入口一致（OR）
-			if (SParaInput.dShapeRatio < 0.8 || nSampleType == 3 || nSampleType == 4)
+			if (SParaInput.dShapeRatio < NONSPERM_INPUT_SHAPE_MIN || nSampleType == 3 || nSampleType == 4)
 			{
 				nStatus = -9;//样本可能为非精子目标
 			}	
@@ -2038,31 +2056,32 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		 }
 
 		 // || nSpermIndex > 30,注：这个判断受样本具体情况影响，结果会有异常判断，暂时先不用
-		 // 分类阀值（会间接导致 nStatus=-9）：type3/4 → -9；type1 → -12；仅 type2 走完整精子活力分析
-		 // 新鲜人精窗(人-备男): AreaAve∈(11,35] 且 ShapeRatio∈[1.15,1.8)；出窗的真精子易落入 type3 兜底
+		 // 分类：type2=新鲜人精→可 nStatus=1；type3/4→-9；type1→-12
+		 // 面积/形态窗由文件头 FRESH_SPERM_* 宏控制（放宽这些宏即可让更多样本判为正常精子）
 		 if ((pSSpermRange.dAreaAve > 35 && pSSpermRange.dShapeRatio > 2)||(pSSpermRange.dAreaAve > 40 && pSSpermRange.dShapeRatio > 2.8)||(pSSpermRange.dAreaAve > 60 && pSSpermRange.dShapeRatio > 2.5)||pSSpermRange.dAreaAve > 75)
 		 {
 			 nSampleType = 1;//干涸人精
 		 }
-		 // else if ((pSSpermRange.dAreaAve <= 40 && pSSpermRange.dAreaAve > 11) &&  (pSSpermRange.dShapeRatio >= 1.4 &&  pSSpermRange.dShapeRatio < 2.6))//猪-一体机
-		 else if ((pSSpermRange.dAreaAve <= 35 && pSSpermRange.dAreaAve > 11) &&  (pSSpermRange.dShapeRatio >= 1.15 &&  pSSpermRange.dShapeRatio < 1.8)) //人-备男
+		 // else if (...)//猪-一体机旧窗已注释
+		 else if ((pSSpermRange.dAreaAve <= FRESH_SPERM_AREA_MAX && pSSpermRange.dAreaAve > FRESH_SPERM_AREA_MIN)
+			 && (pSSpermRange.dShapeRatio >= FRESH_SPERM_SHAPE_MIN && pSSpermRange.dShapeRatio < FRESH_SPERM_SHAPE_MAX))
 		 {
-			 nSampleType = 2;//新鲜人精
+			 nSampleType = 2;//新鲜人精（放宽后：更小/更大/更圆/更长均可落入此窗）
 		 }
-		 else if (pSSpermRange.dShapeRatio < 1.15)
+		 else if (pSSpermRange.dShapeRatio < FRESH_SPERM_SHAPE_MIN)
 		 {
 			 if (pSSpermRange.dAreaAve > 50)
 			 {
-				 nSampleType = 4;//红细胞
+				 nSampleType = 4;//红细胞（极圆且面积大）
 			 } 
 			 else
 			 {
-				 nSampleType = 3;//标粒
+				 nSampleType = 3;//标粒（极圆且面积不大）
 			 }			 
 		 }
 		 else
 		 {
-			 nSampleType = 3;//其他（偏椭圆但面积不在新鲜人精窗内 → 后续也会 nStatus=-9）
+			 nSampleType = 3;//其他（形态尚可但面积仍出窗 → 仍会 -9；继续放宽 AREA_MIN/MAX）
 		 }
 		 //test
 		 //nSampleType = 2;//新鲜人精
@@ -7576,9 +7595,12 @@ void updateSpermRange(ParaRange *pSAveSpermRange, const int nSampleType)
 	//注：以下参数基于三种类别各8份样本统计得到，date:2018.01.05
 	ParaRange paraRangeTemp;
 	ParaRange paraRangeTemp1 = {40, 110, 75, 9, 34, 21, 3.4, 9, 6.5, 3.3};//干涸人精
-	// 新鲜人精尺寸模板：{AreaMin,AreaMax,AreaAve, MajMin,MajMax,MajAve, MinMin,MinMax,MinAve, ShapeRatio}
-	// 兼容更小/更大精子时优先调此组；ABCD检出窗约为 [0.7*AreaMin, 2*AreaMax]
-	ParaRange paraRangeTemp2 = {11, 22, 16.8, 3.2, 7, 5.08, 2, 4.8, 3.95, 1.23};//新鲜人精
+	// 新鲜人精尺寸模板（数值来自文件头 FRESH_TMPL_*）；ABCD检出窗约 [0.7*AreaMin, 2*AreaMax]
+	ParaRange paraRangeTemp2 = {
+		FRESH_TMPL_AREA_MIN, FRESH_TMPL_AREA_MAX, FRESH_TMPL_AREA_AVE,
+		FRESH_TMPL_MAJ_MIN, FRESH_TMPL_MAJ_MAX, FRESH_TMPL_MAJ_AVE,
+		FRESH_TMPL_MIN_MIN, FRESH_TMPL_MIN_MAX, FRESH_TMPL_MIN_AVE,
+		FRESH_TMPL_SHAPE};//新鲜人精（已放宽，配合 FRESH_SPERM_* 分类窗）
 	//ParaRange paraRangeTemp3 = {5, 30, 15, 2.5, 9.3, 4.4, 2.8, 4.8, 3.8, 1.15};//标粒，测试结果
 	ParaRange paraRangeTemp3 = {5, 150, 15, 2.5, 9.3, 4.4, 2.8, 4.8, 3.8, 1.15};//标粒，测试结果
 	ParaRange paraRangeTemp4 = {30, 150, 62, 6, 11.7, 9.7, 2.8, 9.6, 7.8, 1.16};//红细胞，测试结果
