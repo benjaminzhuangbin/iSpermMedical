@@ -1,5 +1,8 @@
 # nStatus = -9 阀值说明书与调参指导
 
+> **已过时部分请以 `nStatus-9-relax-howto.md` 为准。**  
+> 头文件 `COUNTSPERMMED.H` 明确：`dataIn->dShapeRatio` 为模式开关（`0.5` 标粒 / `≥1` 猪精），不是单纯“越小越要放宽”的几何量。
+
 文档对应源码：`CountSpermMed.cpp`  
 状态含义：**样本可能为非精子目标**
 
@@ -7,25 +10,18 @@
 
 ## 1. 结论先说
 
-**是的，你给出的定义就是 `nStatus = -9` 的唯一赋值点**（全文件仅此一处）：
+**是的，下面就是 `nStatus = -9` 的唯一赋值点**（全文件仅此一处）：
 
 ```cpp
-if (SParaInput.dShapeRatio < 0.8 || nSampleType == 3 || nSampleType == 4)
+if (SParaInput.dShapeRatio < NONSPERM_INPUT_SHAPE_MIN || nSampleType == 3 || nSampleType == 4)
 {
     nStatus = -9;//样本可能为非精子目标
 }
 ```
 
-位置：约 L1902–L1905。
+`NONSPERM_INPUT_SHAPE_MIN` 默认 **0.8**，与头文件「0.5=标粒模式」对齐：输入 0.5 会触发 -9（预期）。
 
-它不是“尺寸过小/过大”的直接判定，而是：
-
-1. **输入期望长宽比**低于阀值，或  
-2. **自动样本分类**判定为标粒/红细胞  
-
-时，把结果标成“可能非精子”。
-
-要兼容更小/更大的真实精子且不出现 `-9`，不能只改这一个 `0.8`，还要改上游的 `checkSampleType()` 分类窗，以及（如需正确检出）`updateSpermRange()` / `getImgContourInfor()` 的尺寸范围。
+另见更新后的操作手册：`docs/nStatus-9-relax-howto.md`。
 
 ---
 

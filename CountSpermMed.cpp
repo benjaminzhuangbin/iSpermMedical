@@ -443,14 +443,24 @@ using namespace cv;
 
 // =============================================================================
 // 【放宽“非精子/-9”判定】一键可调参数（放宽=扩大接受区间；收紧=缩小接受区间）
-// 目标：更多“偏小/偏大/偏圆/偏长”的颗粒判为新鲜人精(nSampleType=2)，最终 nStatus=1
-// 旧值对照：输入形状0.8；面积(11,35]；形状[1.15,1.8)；检出模板 Area 11~22
+//
+// 重要（见 COUNTSPERMMED.H）：
+//   dataIn->dShapeRatio 是【模式开关】，不是图像测得的几何量：
+//     0.5  → 标粒模式（产品语义上期望走非精子/-9）
+//     ≥1   → 猪精模式
+//     代码注释另有 >0.9 视为人精模式
+//   因此 NONSPERM_INPUT_SHAPE_MIN 建议保持 0.8：输入 0.5 时仍会 <0.8 → -9（符合标粒模式）。
+//   若把该宏降到 0.5，则输入 0.5 时 0.5<0.5 为假，会破坏“标粒模式→-9”的约定。
+//
+// 要让真精子少报 -9：调用方应传 dShapeRatio≥1（猪）或>0.9（人），
+// 并放宽下面 FRESH_SPERM_* / FRESH_TMPL_*（图像分类窗与检出模板）。
+// morpPara 只影响输出 dMorp%（形态正常比例），不参与 nStatus=-9。
 // =============================================================================
-#define NONSPERM_INPUT_SHAPE_MIN   0.50  // 原0.8；↓放宽（更低的输入dShapeRatio仍当精子流程）
-#define FRESH_SPERM_AREA_MIN       8.0   // 原11； ↓放宽（接受更小面积，pixel^2）
-#define FRESH_SPERM_AREA_MAX      50.0   // 原35； ↑放宽（接受更大面积，pixel^2）
-#define FRESH_SPERM_SHAPE_MIN      1.05  // 原1.15；↓放宽（接受更圆，长/短轴更接近1）
-#define FRESH_SPERM_SHAPE_MAX      2.10  // 原1.8； ↑放宽（接受更细长）
+#define NONSPERM_INPUT_SHAPE_MIN   0.80  // 模式分界：输入 dShapeRatio < 此值 → 按非精子（标粒）模式；保持0.8以兼容头文件“0.5=标粒”
+#define FRESH_SPERM_AREA_MIN       8.0   // 原11； ↓放宽（接受更小平均面积，pixel^2）
+#define FRESH_SPERM_AREA_MAX      50.0   // 原35； ↑放宽（接受更大平均面积，pixel^2）
+#define FRESH_SPERM_SHAPE_MIN      1.05  // 原1.15；↓放宽（接受更圆：图像统计长/短轴）
+#define FRESH_SPERM_SHAPE_MAX      2.10  // 原1.8； ↑放宽（接受更细长；猪精常需≥2）
 // 新鲜人精检出模板（updateSpermRange paraRangeTemp2），与上窗配套放宽
 #define FRESH_TMPL_AREA_MIN        7.0   // 原11
 #define FRESH_TMPL_AREA_MAX       40.0   // 原22
@@ -511,13 +521,13 @@ struct SSettings
 	double dVolume;	// 每剂容量
 	double dFrameRate;//相机采样频率
 
-	double dShapeRatio;//目标形状长宽比
+	double dShapeRatio;//目标长宽比/模式开关：0.5标粒，>0.9人精(注释)，≥1猪精(头文件)
 	double dPlateType;//玻片类型，1表示蓝色六腔版，0表示白色四腔版
 
 	//校正系数：
 	double dDSDensk;//精液浓度校正系数k，范围限定：0.1-10
 
-	struct sMorpPara morpPara;	// 形态学参数
+	struct sMorpPara morpPara;	// 形态学参数（仅用于 dMorp% 正常形态判定，不参与 nStatus=-9）
 };
 
 //单个精子信息
