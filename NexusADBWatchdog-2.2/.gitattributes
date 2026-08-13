@@ -1,4 +1,5 @@
-# Force Windows script line endings in this repository.
-*.bat text eol=crlf
-*.cmd text eol=crlf
+# Store Windows batch files as-is (CRLF in the blob).
+# GitHub ZIP downloads do NOT apply eol=crlf smudge filters.
+*.bat -text
+*.cmd -text
 *.ps1 text eol=crlf

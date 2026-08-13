@@ -1,4 +1,5 @@
-# Force Windows script line endings for Nexus ADB Watchdog packages.
-NexusADBWatchdog*/**/*.bat text eol=crlf
-NexusADBWatchdog*/**/*.cmd text eol=crlf
+# Windows batch must keep CRLF inside git blobs so GitHub ZIP downloads work.
+# (eol=crlf only helps git checkout; ZIP serves raw blobs.)
+NexusADBWatchdog*/**/*.bat -text
+NexusADBWatchdog*/**/*.cmd -text
 NexusADBWatchdog*/**/*.ps1 text eol=crlf
