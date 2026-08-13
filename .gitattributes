@@ -1,0 +1,4 @@
+# Force Windows script line endings for Nexus ADB Watchdog packages.
+NexusADBWatchdog*/**/*.bat text eol=crlf
+NexusADBWatchdog*/**/*.cmd text eol=crlf
+NexusADBWatchdog*/**/*.ps1 text eol=crlf
