@@ -1,5 +1,1 @@
-# Store Windows batch files as-is (CRLF in the blob).
-# GitHub ZIP downloads do NOT apply eol=crlf smudge filters.
-*.bat -text
-*.cmd -text
-*.ps1 text eol=crlf
+# Match NexusADBWatchdog-2.0 packaging style (LF in repo; works for this project workflow)

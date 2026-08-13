@@ -1,65 +1,61 @@
 @echo off
 REM ============================================================================
 REM Nexus ADB Watchdog 2.2 - install.bat
-REM MUST be CRLF. If this script prints nothing under cmd.exe, your copy
-REM still has Unix LF endings. Use INSTALL.cmd or install.ps1 instead.
+REM Push binary + config to /data/local/watchdog/
 REM ============================================================================
+setlocal EnableExtensions EnableDelayedExpansion
 
-REM Print immediately (even if later lines fail to parse)
-echo ============================================================
-echo  Nexus ADB Watchdog 2.2 - install
-echo ============================================================
-
-setlocal
 cd /d "%~dp0"
-if errorlevel 1 (
-    echo [ERROR] cannot cd to script directory
-    pause
+
+set "RELEASE_DIR=%~dp0release"
+set "REMOTE_DIR=/data/local/watchdog"
+set "BINARY=%RELEASE_DIR%\watchdog"
+set "CONF=%RELEASE_DIR%\watchdog.conf"
+
+if not exist "%BINARY%" (
+    echo [ERROR] Missing binary: %BINARY%
+    echo Run build.bat first.
     exit /b 1
 )
 
-set REMOTE_DIR=/data/local/watchdog
-set BINARY=%~dp0release\watchdog
-set CONF=%~dp0release\watchdog.conf
-
-echo Script dir : %~dp0
-echo Local bin  : %BINARY%
-echo Remote dir : %REMOTE_DIR%
-echo.
-
-if not exist "%BINARY%" goto ERR_NO_BIN
 if not exist "%CONF%" (
-    if exist "%~dp0watchdog.conf" copy /Y "%~dp0watchdog.conf" "%CONF%" >nul
+    copy /Y "%~dp0watchdog.conf" "%CONF%" >nul
 )
 
 where adb >nul 2>nul
-if errorlevel 1 goto ERR_NO_ADB
+if errorlevel 1 (
+    echo [ERROR] adb not found in PATH.
+    exit /b 1
+)
 
-echo.
+echo ============================================================
+echo  Nexus ADB Watchdog 2.2 - install
+echo ============================================================
 adb devices
-echo.
 
-echo [1/7] Stopping previous watchdog if running...
+echo.
+echo [1/6] Stopping previous watchdog if running...
 adb shell "if [ -f %REMOTE_DIR%/watchdog.pid ]; then kill `cat %REMOTE_DIR%/watchdog.pid` 2>/dev/null; fi"
 
-echo [2/7] Creating remote directory...
+echo [2/6] Creating remote directory...
 adb shell "mkdir -p %REMOTE_DIR%"
-if errorlevel 1 goto ERR_MKDIR
+if errorlevel 1 (
+    echo [ERROR] mkdir failed.
+    exit /b 1
+)
 
-echo [3/7] Pushing watchdog binary...
+echo [3/6] Pushing watchdog binary...
 adb push "%BINARY%" "%REMOTE_DIR%/watchdog"
-if errorlevel 1 goto ERR_PUSH_BIN
+if errorlevel 1 exit /b 1
 
-echo [4/7] Pushing watchdog.conf...
+echo [4/6] Pushing watchdog.conf...
 adb push "%CONF%" "%REMOTE_DIR%/watchdog.conf"
-if errorlevel 1 goto ERR_PUSH_CONF
+if errorlevel 1 exit /b 1
 
-echo [5/7] Setting permissions...
+echo [5/6] Setting permissions...
 adb shell "chmod 755 %REMOTE_DIR%"
 adb shell "chmod 755 %REMOTE_DIR%/watchdog"
 adb shell "chmod 644 %REMOTE_DIR%/watchdog.conf"
-
-echo [6/7] Creating placeholders (Android 5.1 safe)...
 adb shell "cat /dev/null > %REMOTE_DIR%/watchdog.log"
 adb shell "cat /dev/null > %REMOTE_DIR%/watchdog.status"
 adb shell "cat /dev/null > %REMOTE_DIR%/watchdog.pid"
@@ -67,40 +63,21 @@ adb shell "chmod 666 %REMOTE_DIR%/watchdog.log"
 adb shell "chmod 666 %REMOTE_DIR%/watchdog.status"
 adb shell "chmod 644 %REMOTE_DIR%/watchdog.pid"
 
-echo [7/7] Verifying + version...
+echo [6/6] Verifying...
 adb shell "ls -l %REMOTE_DIR%"
 echo.
 adb shell "%REMOTE_DIR%/watchdog -h"
+
 echo.
 echo [OK] Install complete - Version 2.2
-echo Next: start.bat   then   status.bat
 echo.
-pause
+echo Start:
+echo   adb shell "nohup %REMOTE_DIR%/watchdog ^> /dev/null 2^>^&1 ^&"
+echo.
+echo Status / log:
+echo   adb shell "cat %REMOTE_DIR%/watchdog.status"
+echo   adb shell "cat %REMOTE_DIR%/watchdog.log"
+echo.
+echo NOTE: Version 2.2 production watchdog. ESTABLISHED=0 is NOT a fault.
+echo.
 exit /b 0
-
-:ERR_NO_BIN
-echo [ERROR] Missing binary:
-echo   %BINARY%
-echo Copy the whole NexusADBWatchdog-2.2 folder including release\watchdog
-pause
-exit /b 1
-
-:ERR_NO_ADB
-echo [ERROR] adb not found in PATH
-pause
-exit /b 1
-
-:ERR_MKDIR
-echo [ERROR] mkdir failed - is device connected?
-pause
-exit /b 1
-
-:ERR_PUSH_BIN
-echo [ERROR] adb push binary failed
-pause
-exit /b 1
-
-:ERR_PUSH_CONF
-echo [ERROR] adb push config failed
-pause
-exit /b 1
