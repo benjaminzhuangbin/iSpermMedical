@@ -1,0 +1,5 @@
+# Windows batch must keep CRLF inside git blobs so GitHub ZIP downloads work.
+# (eol=crlf only helps git checkout; ZIP serves raw blobs.)
+NexusADBWatchdog*/**/*.bat -text
+NexusADBWatchdog*/**/*.cmd -text
+NexusADBWatchdog*/**/*.ps1 text eol=crlf

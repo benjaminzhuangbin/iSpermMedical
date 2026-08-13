@@ -1,24 +1,26 @@
 @echo off
-setlocal EnableExtensions
+REM Nexus ADB Watchdog 2.2 - status.bat
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
-set "REMOTE=/data/local/watchdog"
+set "REMOTE_DIR=/data/local/watchdog"
+
+where adb >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] adb not found in PATH.
+    exit /b 1
+)
+
 echo ============================================================
 echo  Nexus ADB Watchdog 2.2 - status
 echo ============================================================
-where adb >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] adb not in PATH
-    pause
-    exit /b 1
-)
-echo --- help/version ---
-adb shell "%REMOTE%/watchdog -h"
+echo.
+echo --- version ---
+adb shell "%REMOTE_DIR%/watchdog -h"
 echo.
 echo --- watchdog.status ---
-adb shell "cat %REMOTE%/watchdog.status"
+adb shell "cat %REMOTE_DIR%/watchdog.status"
 echo.
-echo --- pid ---
-adb shell "cat %REMOTE%/watchdog.pid 2>/dev/null"
+echo --- watchdog.pid ---
+adb shell "cat %REMOTE_DIR%/watchdog.pid 2>/dev/null"
 echo.
-pause
 exit /b 0

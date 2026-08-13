@@ -1,20 +1,25 @@
 @echo off
-setlocal EnableExtensions
+REM Nexus ADB Watchdog 2.2 - uninstall.bat
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
-set "REMOTE=/data/local/watchdog"
+set "REMOTE_DIR=/data/local/watchdog"
+
+where adb >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] adb not found in PATH.
+    exit /b 1
+)
+
 echo ============================================================
 echo  Nexus ADB Watchdog 2.2 - uninstall
 echo ============================================================
-where adb >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] adb not in PATH
-    pause
-    exit /b 1
-)
 adb devices
-adb shell "if [ -f %REMOTE%/watchdog.pid ]; then kill `cat %REMOTE%/watchdog.pid` 2>/dev/null; sleep 1; fi"
-adb shell "rm -f %REMOTE%/watchdog %REMOTE%/watchdog.conf %REMOTE%/watchdog.pid %REMOTE%/watchdog.status %REMOTE%/watchdog.log %REMOTE%/watchdog.log.1 %REMOTE%/watchdog.error %REMOTE%/watchdog.inject %REMOTE%/watchdog.status.tmp"
-adb shell "rmdir %REMOTE% 2>/dev/null"
+
+echo.
+echo Stopping watchdog...
+adb shell "if [ -f %REMOTE_DIR%/watchdog.pid ]; then kill `cat %REMOTE_DIR%/watchdog.pid` 2>/dev/null; sleep 1; fi"
+echo Removing files...
+adb shell "rm -f %REMOTE_DIR%/watchdog %REMOTE_DIR%/watchdog.conf %REMOTE_DIR%/watchdog.pid %REMOTE_DIR%/watchdog.status %REMOTE_DIR%/watchdog.log %REMOTE_DIR%/watchdog.log.1 %REMOTE_DIR%/watchdog.error %REMOTE_DIR%/watchdog.inject %REMOTE_DIR%/watchdog.status.tmp"
+adb shell "rmdir %REMOTE_DIR% 2>/dev/null"
 echo [OK] uninstall complete
-pause
 exit /b 0
