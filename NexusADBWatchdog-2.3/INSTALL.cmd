@@ -1,10 +1,9 @@
 @echo off
-REM Wrapper: always shows something, then calls install.bat
-cd /d "%~dp0"
 echo.
 echo === INSTALL.cmd wrapper for Nexus ADB Watchdog 2.3 ===
 echo Folder: %CD%
 echo.
+cd /d "%~dp0"
 if not exist "%~dp0install.bat" (
     echo [ERROR] install.bat not found next to INSTALL.cmd
     pause
@@ -23,12 +22,5 @@ call "%~dp0install.bat"
 set ERR=%ERRORLEVEL%
 echo.
 echo install.bat exit code: %ERR%
-if not "%ERR%"=="0" (
-    echo.
-    echo If you saw NO install output above, your install.bat may still be Unix LF.
-    echo Fix with PowerShell:
-    echo   powershell -ExecutionPolicy Bypass -File "%~dp0fix_crlf.ps1"
-    echo Then run:  powershell -ExecutionPolicy Bypass -File "%~dp0install.ps1"
-)
 pause
 exit /b %ERR%
