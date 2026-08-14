@@ -2,11 +2,13 @@
  * @file recovery.c
  * @brief Auto-recovery for Nexus ADB Watchdog 2.4.
  *
- * Never permanently disables recovery. Uses:
- *   - cooldown_sec after each recovery action
- *   - max_restart within restart_window_sec (count auto-zeros when window ends)
+ * PRODUCT HARD RULE: never restart adbd while TCP ADB service is healthy,
+ * and never restart while a live PC/QtScrcpy ESTABLISHED session exists.
+ * Cooldown is NOT a periodic restart timer.
  *
- * Does NOT recover on ESTABLISHED=0 or localhost CNXN / PC offline.
+ * Never permanently disables recovery. Uses:
+ *   - cooldown_sec after each recovery action (only gates retry if STILL fault)
+ *   - max_restart within restart_window_sec (count auto-zeros when window ends)
  */
 
 #ifndef _POSIX_C_SOURCE
@@ -122,14 +124,17 @@ void recovery_note_healthy(recovery_state_t *st)
     if (st == NULL) {
         return;
     }
+    /* Healthy => end recovery/cooldown immediately. Do NOT wait to re-restart. */
+    st->in_cooldown = 0;
+    st->cooldown_until = 0;
+
     if (st->pending_verify) {
         util_strlcpy(st->last_action, RECOVERY_ACTION_SUCCESS, sizeof(st->last_action));
         recovery_log_block("RECOVERY SUCCESS",
                            "ADBD=YES PORT5555=YES Android-side TCP ADB OK",
-                           "FAIL_REASON=NONE");
+                           "recovery state cleared; will NOT restart again");
         st->pending_verify = 0;
-    } else if (strcmp(st->last_action, RECOVERY_ACTION_COOLDOWN) != 0 &&
-               strcmp(st->last_action, RECOVERY_ACTION_RATE_LIMIT) != 0 &&
+    } else if (strcmp(st->last_action, RECOVERY_ACTION_RATE_LIMIT) != 0 &&
                strcmp(st->last_action, RECOVERY_ACTION_SUCCESS) != 0) {
         util_strlcpy(st->last_action, RECOVERY_ACTION_NONE, sizeof(st->last_action));
     }
@@ -310,8 +315,10 @@ int recovery_evaluate(recovery_state_t *st,
                       int adbd_ok,
                       int port_ok,
                       int prop_ok,
-                      int socket_fault)
+                      int socket_fault,
+                      int established)
 {
+    int core_up;
     int service_ok;
 
     if (st == NULL || cfg == NULL) {
@@ -329,10 +336,82 @@ int recovery_evaluate(recovery_state_t *st,
         return 0;
     }
 
-    /* ESTABLISHED is intentionally ignored — idle / no PC client is healthy. */
-    service_ok = (adbd_ok && port_ok && prop_ok && !socket_fault);
+    core_up = (adbd_ok && port_ok) ? 1 : 0;
 
+    /*
+     * HARD RULE: live PC/QtScrcpy TCP session => NEVER restart adbd.
+     * Protects an active mirror session from Watchdog-induced disconnect.
+     */
+    if (core_up && established > 0) {
+        if (!prop_ok) {
+            /* Soft-fix property only; do not stop/start adbd. */
+            (void)recovery_set_tcp_port();
+        }
+        st->socket_fault_since = 0;
+        recovery_note_healthy(st);
+        return 0;
+    }
+
+    /*
+     * HARD RULE: adbd + :5555 LISTEN + no clear fault => do nothing.
+     * ESTABLISHED=0 is normal idle — not a fault.
+     */
+    service_ok = (core_up && prop_ok && !socket_fault) ? 1 : 0;
     if (service_ok) {
+        recovery_note_healthy(st);
+        return 0;
+    }
+
+    /*
+     * Core service already up: only allow carefully scoped fixes.
+     * Never treat cooldown expiry as a reason to restart a healthy listener.
+     */
+    if (core_up) {
+        /* Wrong prop, no live client: setprop + restart once (rate-limited). */
+        if (!prop_ok) {
+            if (st->in_cooldown) {
+                util_strlcpy(st->last_action, RECOVERY_ACTION_COOLDOWN,
+                             sizeof(st->last_action));
+                return 0;
+            }
+            if (!recovery_rate_allow(st, cfg)) {
+                return 0;
+            }
+            recovery_log_block("ADB FAULT DETECTED",
+                               "FAIL_REASON=TCP_PORT_PROP",
+                               "why=persist.adb.tcp.port != 5555; action=FIX_TCP_PORT");
+            (void)recovery_set_tcp_port();
+            (void)recovery_restart_adbd(cfg->adbd_sleep_sec);
+            util_strlcpy(st->last_action, RECOVERY_ACTION_FIX_TCP_PORT,
+                         sizeof(st->last_action));
+            recovery_log_block("RECOVERY ACTION", "FIX_TCP_PORT / adbd restarted", "");
+            recovery_note_attempt(st, cfg);
+            return 1;
+        }
+
+        /* Sustained CLOSE_WAIT only when no live ESTABLISHED client. */
+        if (socket_fault && established == 0) {
+            if (st->in_cooldown) {
+                util_strlcpy(st->last_action, RECOVERY_ACTION_COOLDOWN,
+                             sizeof(st->last_action));
+                return 0;
+            }
+            if (!recovery_rate_allow(st, cfg)) {
+                return 0;
+            }
+            recovery_log_block("ADB FAULT DETECTED",
+                               "FAIL_REASON=TCP_FAULT",
+                               "why=sustained CLOSE_WAIT; no live client; FIX_TCP_FAULT");
+            (void)recovery_restart_adbd(cfg->adbd_sleep_sec);
+            util_strlcpy(st->last_action, RECOVERY_ACTION_FIX_TCP_FAULT,
+                         sizeof(st->last_action));
+            recovery_log_block("RECOVERY ACTION", "FIX_TCP_FAULT / adbd restarted", "");
+            st->socket_fault_since = 0;
+            recovery_note_attempt(st, cfg);
+            return 1;
+        }
+
+        /* Core up and remaining conditions are not actionable restarts. */
         recovery_note_healthy(st);
         return 0;
     }
@@ -342,7 +421,7 @@ int recovery_evaluate(recovery_state_t *st,
         return 0;
     }
 
-    /* CASE A */
+    /* CASE A: adbd missing */
     if (!adbd_ok) {
         if (!recovery_rate_allow(st, cfg)) {
             return 0;
@@ -358,7 +437,7 @@ int recovery_evaluate(recovery_state_t *st,
         return 1;
     }
 
-    /* CASE B */
+    /* CASE B: 5555 not LISTEN */
     if (!port_ok) {
         if (!recovery_rate_allow(st, cfg)) {
             return 0;
@@ -369,38 +448,6 @@ int recovery_evaluate(recovery_state_t *st,
         (void)recovery_restart_adbd(cfg->adbd_sleep_sec);
         util_strlcpy(st->last_action, RECOVERY_ACTION_RESTART_ADBD, sizeof(st->last_action));
         recovery_log_block("RECOVERY ACTION", "RESTART_ADBD requested", "");
-        recovery_note_attempt(st, cfg);
-        return 1;
-    }
-
-    /* CASE C: wrong prop */
-    if (!prop_ok) {
-        if (!recovery_rate_allow(st, cfg)) {
-            return 0;
-        }
-        recovery_log_block("ADB FAULT DETECTED",
-                           "FAIL_REASON=TCP_PORT_PROP",
-                           "why=persist.adb.tcp.port != 5555; action=FIX_TCP_PORT");
-        (void)recovery_set_tcp_port();
-        (void)recovery_restart_adbd(cfg->adbd_sleep_sec);
-        util_strlcpy(st->last_action, RECOVERY_ACTION_FIX_TCP_PORT, sizeof(st->last_action));
-        recovery_log_block("RECOVERY ACTION", "FIX_TCP_PORT / adbd restarted", "");
-        recovery_note_attempt(st, cfg);
-        return 1;
-    }
-
-    /* CASE C: sustained CLOSE_WAIT */
-    if (socket_fault) {
-        if (!recovery_rate_allow(st, cfg)) {
-            return 0;
-        }
-        recovery_log_block("ADB FAULT DETECTED",
-                           "FAIL_REASON=TCP_FAULT",
-                           "why=sustained CLOSE_WAIT on :5555; action=FIX_TCP_FAULT");
-        (void)recovery_restart_adbd(cfg->adbd_sleep_sec);
-        util_strlcpy(st->last_action, RECOVERY_ACTION_FIX_TCP_FAULT, sizeof(st->last_action));
-        recovery_log_block("RECOVERY ACTION", "FIX_TCP_FAULT / adbd restarted", "");
-        st->socket_fault_since = 0;
         recovery_note_attempt(st, cfg);
         return 1;
     }

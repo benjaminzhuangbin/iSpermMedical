@@ -40,6 +40,8 @@ static void main_print_usage(const char *argv0)
     fprintf(stderr,
             "%s\n"
             "Version %s — keep Ethernet TCP ADB (:5555) available.\n"
+            "Fault recovery only — never periodic adbd restart.\n"
+            "ESTABLISHED>0 (live PC/QtScrcpy) => never restart adbd.\n"
             "ESTABLISHED=0 / no PC client is NOT a fault.\n"
             "No localhost CNXN probe (removed as recovery trigger).\n"
             "\n"

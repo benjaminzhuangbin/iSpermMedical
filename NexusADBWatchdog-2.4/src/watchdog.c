@@ -2,7 +2,11 @@
  * @file watchdog.c
  * @brief Monitor loop + recovery orchestration (Version 2.4).
  *
- * No localhost CNXN probe. ESTABLISHED=0 never triggers recovery.
+ * PRODUCT HARD RULES:
+ * - No localhost CNXN probe.
+ * - ESTABLISHED=0 never triggers recovery.
+ * - ESTABLISHED>0 (live QtScrcpy/PC) => never restart adbd.
+ * - Healthy adbd+:5555 => never proactive restart; cooldown is not periodic.
  */
 
 #ifndef _POSIX_C_SOURCE
@@ -203,6 +207,14 @@ int watchdog_run_once(const watchdog_config_t *cfg, watchdog_status_t *status)
     } else {
         g_recovery.socket_fault_since = 0;
     }
+    /*
+     * PRODUCT HARD RULE: live PC/QtScrcpy session must not be classified as a
+     * restart-worthy TCP_FAULT (Watchdog must not kill an active mirror).
+     */
+    if (tcp.established > 0) {
+        socket_fault = 0;
+        g_recovery.socket_fault_since = 0;
+    }
 
     health_classify(adbd_ok, port_ok, prop_ok, tcp.established, socket_fault,
                     status->tcp_health, (unsigned int)sizeof(status->tcp_health),
@@ -211,7 +223,7 @@ int watchdog_run_once(const watchdog_config_t *cfg, watchdog_status_t *status)
                     status->fail_reason, (unsigned int)sizeof(status->fail_reason));
 
     recovery_acted = recovery_evaluate(&g_recovery, cfg, adbd_ok, port_ok,
-                                       prop_ok, socket_fault);
+                                       prop_ok, socket_fault, tcp.established);
 
     util_strlcpy(status->last_action, g_recovery.last_action, sizeof(status->last_action));
 

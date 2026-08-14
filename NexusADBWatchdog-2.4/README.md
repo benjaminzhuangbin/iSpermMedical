@@ -28,14 +28,30 @@ Nexus ADB Watchdog 2.4
 
 ---
 
+## Product hard rules (must never violate)
+
+1. **Fault recovery only** — Watchdog must never periodically / proactively restart adbd.
+2. If `ADBD=YES` and `PORT5555=YES` and there is **no clear Android-side fault** → **do nothing**.
+3. If `ESTABLISHED>0` (live PC / QtScrcpy TCP session) → **never** `RESTART_ADBD` / stop adbd.
+4. `ESTABLISHED=0` / no PC client → **not a fault**, never recovery.
+5. Localhost CNXN / PC `offline` / internal probe failure → **not** a recovery trigger (removed in 2.4).
+6. **Cooldown semantics:** detect clear fault → recover once → cooldown → re-check.  
+   If already healthy → **immediately clear recovery state** and **must not** restart again.  
+   Cooldown is **not** “every 60s restart adbd”.
+7. Long-run goal: days/weeks/months of healthy TCP ADB + QtScrcpy without Watchdog killing the session.
+
+---
+
 ## What 2.4 changes vs 2.3
 
 | Topic | 2.4 behavior |
 |-------|----------------|
 | Localhost CNXN probe | **Removed** as recovery trigger (caused false `ADB_PROTOCOL_FAULT` while PC ADB/QtScrcpy worked) |
+| Cooldown after false fault | **Fixed:** healthy state clears recovery immediately; no re-restart of live sessions |
+| Live `ESTABLISHED>0` | **Hard block** on any adbd restart (protects QtScrcpy) |
 | `ESTABLISHED=0` | **Never** a fault → `TCP_HEALTH=OK` + `ADB_HEALTH=OK` + `CLIENT_STATE=NO_CLIENT` |
-| Auto recovery | Only: adbd missing, :5555 not LISTEN, wrong TCP prop, sustained CLOSE_WAIT |
-| PC `offline` | **Not** detected from Android (cannot reliably read PC adb server) |
+| Auto recovery | Only: adbd missing, :5555 not LISTEN, wrong TCP prop (no live client), sustained CLOSE_WAIT (no live client) |
+| PC `offline` | **Not** detected from Android |
 | Rate limit | `max_restart` / window / cooldown — **never permanent disable** |
 | install.bat | **CRLF** + STARTING banner (avoids silent Windows exit) |
 

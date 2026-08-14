@@ -2,12 +2,19 @@
  * @file recovery.h
  * @brief Auto-recovery engine for Version 2.4 (product-stable).
  *
+ * PRODUCT HARD RULES:
+ * - Fault recovery only — NEVER periodic / proactive adbd restart.
+ * - If adbd OK + :5555 LISTEN + no clear Android-side fault → do nothing.
+ * - If ESTABLISHED > 0 (live PC/QtScrcpy TCP) → NEVER restart adbd.
+ * - ESTABLISHED=0 is NEVER a fault / recovery trigger.
+ * - Localhost CNXN / PC offline is NEVER a recovery trigger.
+ * - Cooldown = post-recovery wait before next attempt on STILL-FAULT;
+ *   if already healthy, clear recovery state immediately (no re-restart).
+ *
  * CASE A: adbd missing
  * CASE B: 5555 not LISTEN
- * CASE C: wrong prop / sustained CLOSE_WAIT TCP fault
+ * CASE C: wrong prop / sustained CLOSE_WAIT (only when no live ESTABLISHED)
  *
- * ESTABLISHED=0 is NEVER a recovery trigger.
- * Localhost CNXN / PC offline is NEVER a recovery trigger.
  * Rate limit: restart_window_sec + cooldown_sec — NEVER permanent disable.
  */
 
@@ -46,6 +53,7 @@ typedef struct recovery_state {
 void recovery_init(recovery_state_t *st, const watchdog_config_t *cfg);
 
 /**
+ * @param established  Current ESTABLISHED count on :5555 (live PC clients).
  * @return 1 if recovery action taken
  */
 int recovery_evaluate(recovery_state_t *st,
@@ -53,7 +61,8 @@ int recovery_evaluate(recovery_state_t *st,
                       int adbd_ok,
                       int port_ok,
                       int prop_ok,
-                      int socket_fault);
+                      int socket_fault,
+                      int established);
 
 long recovery_cooldown_remaining(const recovery_state_t *st);
 
