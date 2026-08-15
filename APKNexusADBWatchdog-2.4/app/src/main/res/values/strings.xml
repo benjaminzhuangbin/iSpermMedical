@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nexus ADB Watchdog</string>
+    <string name="service_running">Watchdog Service running</string>
+    <string name="dev_test_only">DEVELOPMENT / TEST ONLY</string>
+</resources>
