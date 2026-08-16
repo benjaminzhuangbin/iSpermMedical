@@ -11,40 +11,39 @@ Faithful APK port of native **Nexus ADB Watchdog 2.4** (fault recovery only).
 
 ## Root / su (RK3288 Android 5.1.1)
 
-Device adb root may work while the old APK showed `ROOT=NO` — that was an **app RootShell bug**, not missing device root.
+Device adb root often works while an old APK showed `ROOT=NO`.
 
-APK 2.4.2 RootShell:
+**Cause:** App `Runtime.exec(["/vendor/bin/su", ...])` is not the same as
+`adb shell "su -c id"`. On RK3288 / Android 5.1.1 the working form is **shell-wrapped**:
 
-- Tries `/system/xbin/su`, `/system/bin/su`, `/sbin/su`, …
-- Runs `su -c <whole-command>` with correct argv (e.g. one arg: `setprop persist.adb.tcp.port 5555`)
-- Also tries stdin mode (`su` + write command + `exit`)
-- Closes stdin; drains stdout/stderr; accepts `uid=0` from either stream
-
-### Verify ROOT=YES after install
-
-1. Open app once and **allow** SuperSU / root prompt for `Nexus ADB Watchdog`.
-2. Check:
-
-```bat
-adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
+```text
+/system/bin/sh -c "su -c 'id'"
+/system/bin/sh -c "su -c 'setprop persist.adb.tcp.port 5555'"
 ```
 
-Expect:
+APK RootShell primary method: `SH_SU_C` = `/system/bin/sh -c "<su> -c '<cmd>'"`  
+(same shape as adb). Direct `exec(su)` is only used if the su binary exists.
+
+Status fields on success:
 
 ```
 ROOT_OK=1
-ROOT_METHOD=SU_C:/system/xbin/su   (path may vary)
-ROOT_UID=0
-FAIL_REASON=NONE   (when adbd/5555 healthy)
-```
-
-Log head:
-
-```
-ROOT=YES
-ROOT_METHOD=...
+ROOT_METHOD=SH_SU_C:/system/bin/sh+su
 ROOT_UID=0
 ```
+
+On failure, `watchdog.log` includes `ROOT_FAIL_DETAIL=` with every attempt.
+
+### Verify
+
+```bat
+adb install -r release\NexusADBWatchdog.apk
+REM open app once; allow SuperSU if prompted
+adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
+adb shell "grep ROOT /sdcard/NexusADBWatchdog/watchdog.log"
+```
+
+Expect `ROOT=YES` / `ROOT_OK=1` / `ROOT_UID=0`.
 
 ---
 
