@@ -9,6 +9,41 @@ Faithful APK port of native **Nexus ADB Watchdog 2.4** (fault recovery only).
 
 ---
 
+## Log folder (internal shared storage)
+
+On device, Watchdog creates:
+
+```
+/sdcard/NexusADBWatchdog/
+  README.txt
+  watchdog.status
+  watchdog.log
+```
+
+### View on PC (adb)
+
+```bat
+adb shell "ls -l /sdcard/NexusADBWatchdog/"
+adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
+adb shell "cat /sdcard/NexusADBWatchdog/watchdog.log"
+adb pull /sdcard/NexusADBWatchdog/watchdog.log .
+```
+
+### View on device
+
+Use any File Manager → Internal storage → `NexusADBWatchdog` → open `watchdog.log`.
+
+Or in the APK UI: the path is shown at the top; log tail is refreshed every 3s.
+
+### Permanent auto-start
+
+- Opening the APK **auto-starts** the Service.
+- `Application.onCreate` also starts the Service.
+- `BOOT_COMPLETED` starts the Service after reboot.
+- **Stop is disabled** (UI + Service ignores STOP) so Watchdog keeps running.
+
+---
+
 ## Product hard rules (same as native 2.4)
 
 1. Fault recovery **only** — never periodic adbd restart.

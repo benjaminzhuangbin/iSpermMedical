@@ -79,10 +79,16 @@ public class NexusADBWatchdogService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent != null ? intent.getAction() : WatchdogConfig.ACTION_START;
+
+        /*
+         * Product mode: permanent run. ACTION_STOP is ignored so the Service
+         * is not terminated from the UI / casual intents. Use force-stop app
+         * only for development if absolutely required.
+         */
         if (WatchdogConfig.ACTION_STOP.equals(action)) {
-            stopWatchdog();
-            stopSelf();
-            return START_NOT_STICKY;
+            Log.w(TAG, "STOP ignored — Watchdog runs permanently");
+            startWatchdog();
+            return START_STICKY;
         }
 
         if (WatchdogConfig.ACTION_INJECT.equals(action) && intent != null && engine != null) {
