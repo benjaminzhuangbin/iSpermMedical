@@ -1,7 +1,7 @@
 # Nexus ADB Watchdog — Android APK Project 2.4
 
 Package: `com.nexus.adbwatchdog`  
-APK name: `NexusADBWatchdog.apk`  
+APK: `release/NexusADBWatchdog.apk`  
 Target: Rockchip RK3288 / **Android 5.1.1 (API 22)**  
 IDE: **Android Studio Arctic Fox 2020.3.1 Patch 2**
 
@@ -9,159 +9,99 @@ Faithful APK port of native **Nexus ADB Watchdog 2.4** (fault recovery only).
 
 ---
 
-## Root / su (RK3288 Android 5.1.1)
+## Critical: how the APK gets real root (UID 0)
 
-Device adb root often works while an old APK showed `ROOT=NO`.
-
-**Cause:** App `Runtime.exec(["/vendor/bin/su", ...])` is not the same as
-`adb shell "su -c id"`. On RK3288 / Android 5.1.1 the working form is **shell-wrapped**:
+### Confirmed firmware fact
 
 ```text
-/system/bin/sh -c "su -c 'id'"
-/system/bin/sh -c "su -c 'setprop persist.adb.tcp.port 5555'"
+adb shell "su -c id"     → uid=0(root)          # shell UID allowed
+APK uid 10053 + stock su → "uid 10053 not allowed to su"
 ```
 
-APK RootShell primary method: `SH_SU_C` = `/system/bin/sh -c "<su> -c '<cmd>'"`  
-(same shape as adb). Direct `exec(su)` is only used if the su binary exists.
+Stock `/system/xbin/su` is setuid, SELinux Permissive, but **rejects app UIDs**.
+`sh -c "su -c …"` does **not** bypass that check.
 
-Status fields on success:
+### Product solution (one APK)
 
+Factory installs a dedicated setuid helper shipped with this project:
+
+```text
+/system/xbin/nexus_su   root:root  mode 06755
 ```
+
+APK then executes:
+
+```text
+/system/xbin/nexus_su -c id  →  uid=0(root)
+```
+
+Status must show:
+
+```text
 ROOT_OK=1
-ROOT_METHOD=SH_SU_C:/system/bin/sh+su
+ROOT_METHOD=NEXUS_SU:/system/xbin/nexus_su
 ROOT_UID=0
 ```
 
-On failure, `watchdog.log` includes `ROOT_FAIL_DETAIL=` with every attempt.
+Details: [`docs/ROOT_SOLUTION.md`](docs/ROOT_SOLUTION.md)
 
-### Verify
-
-```bat
-adb install -r release\NexusADBWatchdog.apk
-REM open app once; allow SuperSU if prompted
-adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
-adb shell "grep ROOT /sdcard/NexusADBWatchdog/watchdog.log"
-```
-
-Expect `ROOT=YES` / `ROOT_OK=1` / `ROOT_UID=0`.
+**Do not** treat `adb shell su` success as APK root. Only APK-path `id` → `uid=0(root)` counts.
 
 ---
 
-## Log folder (internal shared storage)
+## Factory install (manufacturing once — not hospital user)
 
-On device, Watchdog creates:
+Hospital users: power on + Ethernet only. No USB, no Magisk, no second APK.
 
+Engineering / firmware flash (USB or Ethernet adb **once**):
+
+```bat
+cd APKNexusADBWatchdog-2.4
+factory\install_system.bat
+adb reboot
 ```
+
+What it does:
+
+1. Copies `factory/nexus_su` → `/system/xbin/nexus_su` (setuid 6755)
+2. Installs APK as `/system/priv-app/NexusADBWatchdog/`
+3. Requires reboot
+
+Verify after reboot:
+
+```bat
+adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
+adb shell "grep ROOT /sdcard/NexusADBWatchdog/watchdog.log"
+adb shell "/system/xbin/nexus_su -c id"
+```
+
+Expect `ROOT_OK=1` / `ROOT_UID=0`.
+
+### Plain `adb install` without nexus_su
+
+Will still show `ROOT_OK=0` / `FAIL_REASON=NO_ROOT` / `NEED_FACTORY_NEXUS_SU`.
+That is expected and honest — stock `su` cannot elevate this app UID.
+
+---
+
+## Log folder
+
+```text
 /sdcard/NexusADBWatchdog/
-  README.txt
   watchdog.status
   watchdog.log
 ```
 
-### View on PC (adb)
-
-```bat
-adb shell "ls -l /sdcard/NexusADBWatchdog/"
-adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
-adb shell "cat /sdcard/NexusADBWatchdog/watchdog.log"
-adb pull /sdcard/NexusADBWatchdog/watchdog.log .
-```
-
-### View on device
-
-Use any File Manager → Internal storage → `NexusADBWatchdog` → open `watchdog.log`.
-
-Or in the APK UI: the path is shown at the top; log tail is refreshed every 3s.
-
-### Permanent auto-start
-
-- Opening the APK **auto-starts** the Service.
-- `Application.onCreate` also starts the Service.
-- `BOOT_COMPLETED` starts the Service after reboot.
-- **Stop is disabled** (UI + Service ignores STOP) so Watchdog keeps running.
-
 ---
 
-## Product hard rules (same as native 2.4)
+## Permanent auto-start
 
-1. Fault recovery **only** — never periodic adbd restart.
-2. `ESTABLISHED > 0` (live QtScrcpy/PC) → **never** restart/stop adbd.
-3. `ESTABLISHED = 0` / no PC client → **not** a fault.
-4. **No** localhost CNXN probe (removed; caused 2.3 QtScrcpy drops).
-5. **CLOSE_WAIT is not a recovery trigger** in this APK (diagnostic fields only).
-6. Cooldown is post-fault only; if healthy → clear recovery state immediately.
-7. Rate limit window (`max_restart=3` / `600s`) — **never** permanent disable.
+- `Application.onCreate` starts Service
+- Opening APK starts Service
+- `BOOT_COMPLETED` starts Service
+- Stop is disabled (permanent run)
 
-Recovery cases:
-
-| Case | Condition | Action |
-|------|-----------|--------|
-| A | ADBD=NO | setprop TCP 5555 + `ctl.start adbd` |
-| B | ADBD=YES, PORT5555=NO | setprop + stop + sleep + start adbd |
-
----
-
-## Open & build (Android Studio Arctic Fox)
-
-1. Install Android Studio Arctic Fox 2020.3.1 Patch 2.
-2. SDK Manager: install **Android SDK Platform 30** (compile) and ensure **API 22** platform is available for device.
-3. `File → Open` → select folder `APKNexusADBWatchdog-2.4`.
-4. Create `local.properties`:
-
-```properties
-sdk.dir=C:\\Users\\YOU\\AppData\\Local\\Android\\Sdk
-```
-
-5. Gradle Sync (project uses AGP **7.0.4** + Gradle **7.0.2**).
-6. `Build → Build Bundle(s) / APK(s) → Build APK(s)`.
-
-Debug APK output:
-
-```
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-Rename/copy to `NexusADBWatchdog.apk` for deployment if desired.
-
-Release:
-
-```
-Build → Generate Signed Bundle / APK → APK
-```
-
-Or CLI (with SDK + JDK 11 recommended for AGP 7):
-
-```bat
-gradlew.bat assembleDebug
-gradlew.bat assembleRelease
-```
-
----
-
-## Install on device (root RK3288)
-
-```bat
-adb install -r app\build\outputs\apk\debug\app-debug.apk
-```
-
-Grant root to the app when Magisk/SuperSU prompts (required).
-
----
-
-## Start / stop Watchdog Service
-
-### From Watchdog APK UI
-
-Open **Nexus ADB Watchdog** → **Start**.
-
-### From adb
-
-```bat
-adb shell am startservice -n com.nexus.adbwatchdog/.NexusADBWatchdogService -a com.nexus.adbwatchdog.action.START
-adb shell am startservice -n com.nexus.adbwatchdog/.NexusADBWatchdogService -a com.nexus.adbwatchdog.action.STOP
-```
-
-### From your Main APP (Java)
+Main APP:
 
 ```java
 Intent i = new Intent();
@@ -172,151 +112,96 @@ i.setAction("com.nexus.adbwatchdog.action.START");
 context.startService(i);
 ```
 
-Stop:
+---
 
-```java
-i.setAction("com.nexus.adbwatchdog.action.STOP");
-context.startService(i);
-```
+## Product hard rules (native 2.4 — unchanged)
 
-Explicit package/class (also valid):
+1. Fault recovery **only** — never periodic adbd restart.
+2. `ESTABLISHED > 0` → **never** restart/stop adbd.
+3. `ESTABLISHED = 0` → **not** a fault.
+4. **No** localhost CNXN probe.
+5. CLOSE_WAIT is diagnostic only — not a recovery trigger.
+6. Rate limit window — **never** permanent disable.
 
-```java
-Intent i = new Intent();
-i.setClassName("com.nexus.adbwatchdog", "com.nexus.adbwatchdog.NexusADBWatchdogService");
-i.setAction("com.nexus.adbwatchdog.action.START");
-startService(i);
+| Case | Condition | Action |
+|------|-----------|--------|
+| A | ADBD=NO | setprop TCP 5555 + `ctl.start adbd` |
+| B | ADBD=YES, PORT5555=NO | setprop + stop + sleep + start adbd |
+
+---
+
+## Build (Android Studio Arctic Fox)
+
+1. Open folder `APKNexusADBWatchdog-2.4`.
+2. `local.properties` → `sdk.dir=...`
+3. Optional rebuild helper: `native/nexus_su/build.sh` (NDK r21e, armeabi-v7a).
+4. `Build → Build APK(s)` or:
+
+```bat
+gradlew.bat assembleDebug
+copy app\build\outputs\apk\debug\app-debug.apk release\NexusADBWatchdog.apk
 ```
 
 ---
 
-## Boot auto-start
-
-`BootReceiver` listens for `BOOT_COMPLETED` and starts `NexusADBWatchdogService`.
-
-Verify after reboot:
+## Verify root (must be APK path)
 
 ```bat
-adb shell dumpsys activity services com.nexus.adbwatchdog
-adb shell "run-as com.nexus.adbwatchdog cat /data/data/com.nexus.adbwatchdog/files/watchdog.status"
+adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
 ```
 
-If `run-as` is blocked on production builds, use root:
+Required:
+
+```text
+ROOT_OK=1
+ROOT_METHOD=NEXUS_SU:/system/xbin/nexus_su
+ROOT_UID=0
+```
+
+Optional direct proof of helper:
 
 ```bat
-adb shell su -c "cat /data/data/com.nexus.adbwatchdog/files/watchdog.status"
-adb shell su -c "cat /data/data/com.nexus.adbwatchdog/files/watchdog.log"
+adb shell "/system/xbin/nexus_su -c id"
 ```
 
 ---
 
-## Check running / status / log
+## Verify ADB recovery (Ethernet, no USB)
 
-```bat
-adb shell dumpsys activity services | findstr nexus
-adb shell su -c "cat /data/data/com.nexus.adbwatchdog/files/watchdog.status"
-adb shell su -c "tail -n 80 /data/data/com.nexus.adbwatchdog/files/watchdog.log"
-```
-
-Status first line must be:
-
-```
-Nexus ADB Watchdog 2.4
-```
-
-Healthy while QtScrcpy connected example:
-
-```
-ADBD=YES
-PORT5555=YES
-ESTABLISHED=1
-CLIENT_STATE=CONNECTED
-TCP_HEALTH=OK
-ADB_HEALTH=OK
-FAIL_REASON=NONE
-LAST_ACTION=NONE
-RESTART_COUNT=0
-```
-
----
-
-## Test inject (DEVELOPMENT / TEST ONLY)
-
-Use MainActivity buttons, or:
+1. Factory-install APK + `nexus_su`; reboot; Ethernet only.
+2. PC: `adb connect 192.168.31.11:5555` / QtScrcpy — must stay healthy; **RESTART_COUNT** must not climb.
+3. Inject CASE A (test UI or):
 
 ```bat
 adb shell am startservice -n com.nexus.adbwatchdog/.NexusADBWatchdogService -a com.nexus.adbwatchdog.action.INJECT --es inject_cmd STOP_ADBD
-adb shell am startservice -n com.nexus.adbwatchdog/.NexusADBWatchdogService -a com.nexus.adbwatchdog.action.INJECT --es inject_cmd BREAK_PORT
 ```
 
-Expected:
+Expect recovery → ADBD=YES / PORT5555=YES / device back.
 
-- **STOP_ADBD** → ADBD=NO → `START_ADBD` → ADBD=YES / PORT5555=YES
-- **BREAK_PORT** → PORT5555=NO → `RESTART_ADBD` → PORT5555=YES
-
-Production must not auto-run these tests.
+4. Inject CASE B: `BREAK_PORT` → RESTART_ADBD → 5555 listening again.
 
 ---
 
-## Ethernet-only (no USB) verification
+## Does this APK have Ethernet TCP ADB auto-recovery?
 
-1. Install APK over USB once; enable root for the app.
-2. Disconnect USB; keep Ethernet (`192.168.31.11`).
-3. Boot device; confirm Service starts (`BOOT_COMPLETED`) or start from Main APP.
-4. From PC: `adb connect 192.168.31.11:5555` / QtScrcpy.
-5. Confirm status stays healthy and **RESTART_COUNT** does not climb while mirror works.
+| Condition | Answer |
+|-----------|--------|
+| After factory install of `nexus_su` + APK, `ROOT_OK=1` | **Yes** — Watchdog 2.4 recovery runs as real root |
+| Only `adb install` as data app, no `nexus_su` | **No** — stock `su` blocks app UID; status stays `NO_ROOT` |
 
 ---
 
 ## Project layout
 
-```
+```text
 APKNexusADBWatchdog-2.4/
-  app/src/main/java/com/nexus/adbwatchdog/
-    MainActivity.java
-    NexusADBWatchdogService.java
-    BootReceiver.java
-    WatchdogEngine.java
-    RecoveryEngine.java
-    TcpNetProbe.java
-    RootShell.java
-    WatchdogStatus.java
-    WatchdogConfig.java
-    WatchdogLogger.java
-    StatusStore.java
-  app/src/main/AndroidManifest.xml
-  build.gradle / settings.gradle / gradle.properties
-  README.md
+  app/src/main/java/com/nexus/adbwatchdog/   # Service + 2.4 engine
+  app/src/main/assets/native/armeabi-v7a/nexus_su
+  native/nexus_su/                           # setuid helper source
+  factory/install_system.bat                 # manufacturing install
+  factory/install_on_device.sh
+  factory/nexus_su
+  release/NexusADBWatchdog.apk
+  docs/ROOT_SOLUTION.md
   docs/MAIN_APP_INTEGRATION.md
 ```
-
-Files live under app private storage:
-
-`/data/data/com.nexus.adbwatchdog/files/watchdog.status`  
-`/data/data/com.nexus.adbwatchdog/files/watchdog.log`
-
-**Not** `/data/local/watchdog/` (that path is for the native binary product).
-
----
-
-## Architecture
-
-```
-MyMainApp.apk
-    startService(Intent)
-        ↓
-NexusADBWatchdog.apk  (com.nexus.adbwatchdog)
-    NexusADBWatchdogService  (every ~5s)
-        ↓
-    RootShell (su)
-        ↓
-    adbd / persist.adb.tcp.port / /proc/net/tcp
-```
-
----
-
-## Known requirements
-
-- Device must be **rooted**; without `su`, status shows `ROOT_OK=0` / `FAIL_REASON=NO_ROOT`.
-- Android 5.1.1 Service uses sticky + partial wake lock + foreground notification.
-- Do not reintroduce 2.3 CNXN probe logic.

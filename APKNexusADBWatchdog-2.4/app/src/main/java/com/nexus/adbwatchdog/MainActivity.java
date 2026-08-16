@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
         boolean root = RootShell.hasRoot();
         String logPath = StatusStore.logFile(this).getAbsolutePath();
         String statusPath = StatusStore.statusFile(this).getAbsolutePath();
-        tvRoot.setText("ROOT=" + (root ? "YES" : "NO (grant SuperSU / su)")
+        tvRoot.setText("ROOT=" + (root ? "YES" : "NO — need factory /system/xbin/nexus_su")
                 + "\nROOT_METHOD=" + RootShell.getRootMethod()
                 + " ROOT_UID=" + RootShell.getRootUid()
                 + "\n" + RootShell.getLastDiag()

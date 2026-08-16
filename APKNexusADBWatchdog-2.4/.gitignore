@@ -12,3 +12,8 @@ captures/
 # OS
 .DS_Store
 Thumbs.db
+
+# NDK build intermediates
+native/nexus_su/obj/
+native/nexus_su/libs/
+local.properties

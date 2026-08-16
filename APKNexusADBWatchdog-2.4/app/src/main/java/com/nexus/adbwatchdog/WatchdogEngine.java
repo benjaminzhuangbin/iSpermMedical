@@ -50,6 +50,7 @@ public final class WatchdogEngine {
             logger.line("SU_PATH=" + RootShell.getSuPath());
             if (!rootCached) {
                 logger.line("ROOT_FAIL_DETAIL=" + RootShell.getLastFailDetail());
+                logger.line("ROOT_HINT=factory install /system/xbin/nexus_su (setuid) — see docs/ROOT_SOLUTION.md");
             }
         }
         st.rootOk = rootCached;
