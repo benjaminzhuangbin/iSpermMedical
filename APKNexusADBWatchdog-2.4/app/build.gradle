@@ -9,8 +9,8 @@ android {
         applicationId "com.nexus.adbwatchdog"
         minSdkVersion 22
         targetSdkVersion 22
-        versionCode 25
-        versionName "2.4.1"
+        versionCode 26
+        versionName "2.4.2"
         // Keep package stable for Main APP Intent integration
     }
 

@@ -9,6 +9,45 @@ Faithful APK port of native **Nexus ADB Watchdog 2.4** (fault recovery only).
 
 ---
 
+## Root / su (RK3288 Android 5.1.1)
+
+Device adb root may work while the old APK showed `ROOT=NO` — that was an **app RootShell bug**, not missing device root.
+
+APK 2.4.2 RootShell:
+
+- Tries `/system/xbin/su`, `/system/bin/su`, `/sbin/su`, …
+- Runs `su -c <whole-command>` with correct argv (e.g. one arg: `setprop persist.adb.tcp.port 5555`)
+- Also tries stdin mode (`su` + write command + `exit`)
+- Closes stdin; drains stdout/stderr; accepts `uid=0` from either stream
+
+### Verify ROOT=YES after install
+
+1. Open app once and **allow** SuperSU / root prompt for `Nexus ADB Watchdog`.
+2. Check:
+
+```bat
+adb shell "cat /sdcard/NexusADBWatchdog/watchdog.status"
+```
+
+Expect:
+
+```
+ROOT_OK=1
+ROOT_METHOD=SU_C:/system/xbin/su   (path may vary)
+ROOT_UID=0
+FAIL_REASON=NONE   (when adbd/5555 healthy)
+```
+
+Log head:
+
+```
+ROOT=YES
+ROOT_METHOD=...
+ROOT_UID=0
+```
+
+---
+
 ## Log folder (internal shared storage)
 
 On device, Watchdog creates:

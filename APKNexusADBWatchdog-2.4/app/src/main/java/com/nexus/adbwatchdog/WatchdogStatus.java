@@ -33,6 +33,9 @@ public class WatchdogStatus {
     public int timeWait;
     public int synRecv;
     public boolean rootOk;
+    public String rootMethod = "NONE";
+    public String rootUid = "-1";
+    public String rootDiag = "";
 
     public void stampNow() {
         timeStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
@@ -66,6 +69,8 @@ public class WatchdogStatus {
         sb.append("TIME_WAIT=").append(timeWait).append('\n');
         sb.append("SYN_RECV=").append(synRecv).append('\n');
         sb.append("ROOT_OK=").append(rootOk ? 1 : 0).append('\n');
+        sb.append("ROOT_METHOD=").append(rootMethod != null ? rootMethod : "NONE").append('\n');
+        sb.append("ROOT_UID=").append(rootUid != null ? rootUid : "-1").append('\n');
         sb.append("MODE=APK_PERMANENT\n");
         sb.append("LOG_DIR=").append(StatusStore.PUBLIC_DIR_PATH).append('\n');
         return sb.toString();
