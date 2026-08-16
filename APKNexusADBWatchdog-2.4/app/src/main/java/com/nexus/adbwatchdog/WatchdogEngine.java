@@ -48,6 +48,9 @@ public final class WatchdogEngine {
             logger.line("ROOT_UID=" + RootShell.getRootUid());
             logger.line("ROOT_DIAG=" + RootShell.getLastDiag());
             logger.line("SU_PATH=" + RootShell.getSuPath());
+            if (!rootCached) {
+                logger.line("ROOT_FAIL_DETAIL=" + RootShell.getLastFailDetail());
+            }
         }
         st.rootOk = rootCached;
         if (!st.rootOk) {
