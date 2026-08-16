@@ -1,0 +1,23 @@
+// Top-level build file for Nexus ADB Watchdog APK 2.4
+// Compatible with Android Studio Arctic Fox 2020.3.1 Patch 2
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.0.4'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
