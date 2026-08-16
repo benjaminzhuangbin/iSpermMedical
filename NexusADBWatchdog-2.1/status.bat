@@ -1,14 +1,27 @@
 @echo off
-REM Show watchdog status / recent log from Android
-setlocal
+setlocal EnableExtensions
+cd /d "%~dp0"
 set "REMOTE=/data/local/watchdog"
-where adb >nul 2>nul || (echo [ERROR] adb not in PATH & exit /b 1)
-echo === watchdog.status ===
+echo ============================================================
+echo  Nexus ADB Watchdog 2.1 - status
+echo ============================================================
+where adb >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] adb not in PATH
+    pause
+    exit /b 1
+)
+echo --- version ---
+adb shell "%REMOTE%/watchdog -h"
+echo.
+echo --- watchdog.status ---
 adb shell "cat %REMOTE%/watchdog.status"
 echo.
-echo === watchdog.pid ===
+echo --- watchdog.pid ---
 adb shell "cat %REMOTE%/watchdog.pid 2>/dev/null"
 echo.
-echo === last log lines ===
-adb shell "cat %REMOTE%/watchdog.log 2>/dev/null" | more
+echo --- watchdog.conf ---
+adb shell "cat %REMOTE%/watchdog.conf"
+echo.
+pause
 exit /b 0
