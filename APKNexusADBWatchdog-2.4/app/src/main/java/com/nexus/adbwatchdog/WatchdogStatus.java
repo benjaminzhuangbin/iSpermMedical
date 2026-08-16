@@ -66,7 +66,8 @@ public class WatchdogStatus {
         sb.append("TIME_WAIT=").append(timeWait).append('\n');
         sb.append("SYN_RECV=").append(synRecv).append('\n');
         sb.append("ROOT_OK=").append(rootOk ? 1 : 0).append('\n');
-        sb.append("MODE=APK\n");
+        sb.append("MODE=APK_PERMANENT\n");
+        sb.append("LOG_DIR=").append(StatusStore.PUBLIC_DIR_PATH).append('\n');
         return sb.toString();
     }
 }
