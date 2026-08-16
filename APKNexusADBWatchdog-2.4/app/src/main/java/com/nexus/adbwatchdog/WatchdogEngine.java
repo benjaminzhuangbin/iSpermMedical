@@ -39,17 +39,26 @@ public final class WatchdogEngine {
         st.recoveryEnabled = cfg.recoveryEnable ? 1 : 0;
 
         if (!rootChecked) {
+            RootShell.resetRootCache();
             rootCached = RootShell.hasRoot();
             rootChecked = true;
             logger.line("======= Nexus ADB Watchdog 2.4 APK started =======");
             logger.line("ROOT=" + (rootCached ? "YES" : "NO"));
+            logger.line("ROOT_METHOD=" + RootShell.getRootMethod());
+            logger.line("ROOT_UID=" + RootShell.getRootUid());
+            logger.line("ROOT_DIAG=" + RootShell.getLastDiag());
+            logger.line("SU_PATH=" + RootShell.getSuPath());
         }
         st.rootOk = rootCached;
         if (!st.rootOk) {
-            // Re-probe occasionally
+            // Re-probe each cycle until granted (SuperSU prompt / first allow)
+            RootShell.resetRootCache();
             st.rootOk = RootShell.hasRoot();
             rootCached = st.rootOk;
         }
+        st.rootMethod = RootShell.getRootMethod();
+        st.rootUid = RootShell.getRootUid();
+        st.rootDiag = RootShell.getLastDiag();
 
         if (!st.rootOk) {
             st.adbd = "NO";
