@@ -1,14 +1,14 @@
-// ²âÊÔ³ÌÐò
+// ï¿½ï¿½ï¿½Ô³ï¿½ï¿½ï¿½
 #include "CountSpermMed.h"
 
-//#include "testbenchMultiThread.h"//¶àÏß³Ì²âÊÔ×¨ÓÃ
-#include <io.h> //Ä¿Â¼ÎÄ¼þÁÐ±íËÑË÷×¨ÓÃ
-#include <time.h>//´òÓ¡ÏµÍ³Ê±¼ä×¨ÓÃ
+//#include "testbenchMultiThread.h"//ï¿½ï¿½ï¿½ß³Ì²ï¿½ï¿½ï¿½×¨ï¿½ï¿½
+#include <io.h> //Ä¿Â¼ï¿½Ä¼ï¿½ï¿½Ð±ï¿½ï¿½ï¿½ï¿½ï¿½×¨ï¿½ï¿½
+#include <time.h>//ï¿½ï¿½Ó¡ÏµÍ³Ê±ï¿½ï¿½×¨ï¿½ï¿½
 
-#include<opencv/cv.h>   //cv.h OpenCVµÄÖ÷Òª¹¦ÄÜÍ·ÎÄ¼þ
-#include <opencv/highgui.h>//ÏÔÊ¾Í¼ÏñÓÃµÄ£¬ÒòÎªÓÃµ½ÁËÏÔÊ¾Í¼Æ¬
+#include<opencv/cv.h>   //cv.h OpenCVï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½Í·ï¿½Ä¼ï¿½
+#include <opencv/highgui.h>//ï¿½ï¿½Ê¾Í¼ï¿½ï¿½ï¿½ÃµÄ£ï¿½ï¿½ï¿½Îªï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½Ê¾Í¼Æ¬
 
-//²âÊÔ¼ÆËãºÄÊ±×¨ÓÃ
+//ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½Ê±×¨ï¿½ï¿½
 #include <iostream>  
 #include <windows.h>  
 
@@ -22,26 +22,26 @@
 #endif
 
 #include <stdlib.h>
-#include <iostream> //cout,cinÊä³öÏÔÊ¾ÓÃ
+#include <iostream> //cout,cinï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½
 
 using namespace std;
 
-//½á¹ûÐ´µ½ÎÄ¼þ
+//ï¿½ï¿½ï¿½Ð´ï¿½ï¿½ï¿½Ä¼ï¿½
 //int writeInfoToFile(const char *pcFilePath, const char *pcVidFileName, alg_data_out *dataOut);
 
-//Ò»Ìå»úÒ½ÁÆ°æÏîÄ¿
+//Ò»ï¿½ï¿½ï¿½Ò½ï¿½Æ°ï¿½ï¿½ï¿½Ä¿
 static void test_algsqaMed(void);
 
 int main(int argc, char **argv)
 {
-	//ÄÚ´æÐ¹Â©²âÊÔ
+	//ï¿½Ú´ï¿½Ð¹Â©ï¿½ï¿½ï¿½ï¿½
 	EnableMemLeakCheck();
 	//_CrtSetBreakAlloc(470);
 
 	test_algsqaMed();
 
-	_CrtDumpMemoryLeaks();//¼ì²éÄÚ´æÐ¹Â©
-    // °´¼üÍË³ö 
+	_CrtDumpMemoryLeaks();//ï¿½ï¿½ï¿½ï¿½Ú´ï¿½Ð¹Â©
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ 
     cout << endl << "Press any key + enter to quit!" << endl;
     char flag;
     cin >> flag;
@@ -49,161 +49,161 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-//Ò»Ìå»úÒ½ÁÆ°æÏîÄ¿
+//Ò»ï¿½ï¿½ï¿½Ò½ï¿½Æ°ï¿½ï¿½ï¿½Ä¿
 static void test_algsqaMed(void)
 {
-	//ÊäÈë²Î¿¼£º
+	//ï¿½ï¿½ï¿½ï¿½Î¿ï¿½ï¿½ï¿½
 	struct tag_algsqamed_data_in *algsqamed_data_in_t = (struct tag_algsqamed_data_in *)malloc(sizeof(struct tag_algsqamed_data_in));
 	struct tag_algInforMed *algInforMed = (struct tag_algInforMed *)malloc(sizeof(struct tag_algInforMed));
 
-	//ÏµÍ³²ÎÊý¶¨Òå
-	algsqamed_data_in_t->dRatioImg = 0.958;//0.9068;//Í¼Ïñ·Å´óÂÊ,um/pixel
-	algsqamed_data_in_t->dSampleDepth = 20;//Ñù±¾ºñ¶È
-	algsqamed_data_in_t->dVolume= 3;// ¾«ÒºÁ¿£¬µ¥Î»ml
-	algsqamed_data_in_t->dFrameRate = 24;//Ïà»ú²ÉÑùÆµÂÊ
-	algsqamed_data_in_t->dShapeRatio = 1;//Ä¿±êµÄ³¤¿í±È£¬0.5Îª±êÁ£Ä£Ê½£¬1ÒÔÉÏÎªÖí¾«Ä£Ê½£¨¸ÃÖµ½çÃæ¿Éµ÷£¬·¶Î§1µ½2£©
-	algsqamed_data_in_t->dPlateType = 1;//²£Æ¬ÀàÐÍ£¬1±íÊ¾À¶É«ÁùÇ»°æ£¬0±íÊ¾°×É«ËÄÇ»°æ
-	algsqamed_data_in_t->pcImgPath = "E:/2012/Coding/SQAM/vsProj/spermAnalysis/spermAnalysis/data/";//Í¼ÏñµØÖ·
+	//ÏµÍ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->dRatioImg = 0.958;//0.9068;//Í¼ï¿½ï¿½Å´ï¿½ï¿½ï¿½,um/pixel
+	algsqamed_data_in_t->dSampleDepth = 20;//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->dVolume= 3;// ï¿½ï¿½Òºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ml
+	algsqamed_data_in_t->dFrameRate = 24;//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½ï¿½
+	algsqamed_data_in_t->dShapeRatio = 1;//Ä¿ï¿½ï¿½Ä³ï¿½ï¿½ï¿½È£ï¿½0.5Îªï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½Éµï¿½ï¿½ï¿½ï¿½ï¿½Î§1ï¿½ï¿½2ï¿½ï¿½
+	algsqamed_data_in_t->dPlateType = 1;//ï¿½ï¿½Æ¬ï¿½ï¿½ï¿½Í£ï¿½1ï¿½ï¿½Ê¾ï¿½ï¿½É«ï¿½ï¿½Ç»ï¿½æ£¬0ï¿½ï¿½Ê¾ï¿½ï¿½É«ï¿½ï¿½Ç»ï¿½ï¿½
+	algsqamed_data_in_t->pcImgPath = "E:/2012/Coding/SQAM/vsProj/spermAnalysis/spermAnalysis/data/";//Í¼ï¿½ï¿½ï¿½Ö·
 	algsqamed_data_in_t->pcResultPath = "E:/2012/Coding/SQAM/vsProj/spermAnalysis/spermAnalysis/data/ResultImgs/";
-	algsqamed_data_in_t->dDSDensk = 1;//Å¨¶ÈÐ£ÕýÏµÊýk£¬0.1< k <=10
+	algsqamed_data_in_t->dDSDensk = 1;//Å¨ï¿½ï¿½Ð£ï¿½ï¿½Ïµï¿½ï¿½kï¿½ï¿½0.1< k <=10
 
 	/*
-	// ÐÎÌ¬Ñ§²ÎÊýÅÐ¶Ï·¶Î§£¨ÈË¡ª¡ª±¸ÄÐ£©
-	algsqamed_data_in_t->morpPara.dLength.min = 5.0;		//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dLength.max = 7.5;		//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dWidth.min = 3.0;			//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dWidth.max = 4.5;			//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dShape.min = 1.5;			//ÎÞÁ¿¸Ù
-	algsqamed_data_in_t->morpPara.dShape.max = 1.8;			//ÎÞÁ¿¸Ù
-	algsqamed_data_in_t->morpPara.dArea.min = 15.0;			//µ¥Î»um2
-	algsqamed_data_in_t->morpPara.dArea.max = 25.0;			//µ¥Î»um2
-	algsqamed_data_in_t->morpPara.dCircularity.min = 0.6;	//ÎÞÁ¿¸Ù
-	algsqamed_data_in_t->morpPara.dCircularity.max = 0.9;	//ÎÞÁ¿¸Ù
+	// ï¿½ï¿½Ì¬Ñ§ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶Ï·ï¿½Î§ï¿½ï¿½ï¿½Ë¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½
+	algsqamed_data_in_t->morpPara.dLength.min = 5.0;		//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dLength.max = 7.5;		//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dWidth.min = 3.0;			//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dWidth.max = 4.5;			//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dShape.min = 1.5;			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->morpPara.dShape.max = 1.8;			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->morpPara.dArea.min = 15.0;			//ï¿½ï¿½Î»um2
+	algsqamed_data_in_t->morpPara.dArea.max = 25.0;			//ï¿½ï¿½Î»um2
+	algsqamed_data_in_t->morpPara.dCircularity.min = 0.6;	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->morpPara.dCircularity.max = 0.9;	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	*/
 
-	// ÐÎÌ¬Ñ§²ÎÊýÅÐ¶Ï·¶Î§£¨Öí¡ª¡ªÒ»Ìå»ú£©
-	algsqamed_data_in_t->morpPara.dLength.min = 8.5;		//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dLength.max = 11.5;		//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dWidth.min = 3.0;			//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dWidth.max = 5.0;			//µ¥Î»um
-	algsqamed_data_in_t->morpPara.dShape.min = 2.1;			//ÎÞÁ¿¸Ù
-	algsqamed_data_in_t->morpPara.dShape.max = 2.5;			//ÎÞÁ¿¸Ù
-	algsqamed_data_in_t->morpPara.dArea.min = 25.0;			//µ¥Î»um2
-	algsqamed_data_in_t->morpPara.dArea.max = 35.0;			//µ¥Î»um2
-	algsqamed_data_in_t->morpPara.dCircularity.min = 0.4;	//ÎÞÁ¿¸Ù
-	algsqamed_data_in_t->morpPara.dCircularity.max = 0.7;	//ÎÞÁ¿¸Ù
+	// ï¿½ï¿½Ì¬Ñ§ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶Ï·ï¿½Î§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->morpPara.dLength.min = 8.5;		//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dLength.max = 11.5;		//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dWidth.min = 3.0;			//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dWidth.max = 5.0;			//ï¿½ï¿½Î»um
+	algsqamed_data_in_t->morpPara.dShape.min = 2.1;			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->morpPara.dShape.max = 2.5;			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->morpPara.dArea.min = 25.0;			//ï¿½ï¿½Î»um2
+	algsqamed_data_in_t->morpPara.dArea.max = 35.0;			//ï¿½ï¿½Î»um2
+	algsqamed_data_in_t->morpPara.dCircularity.min = 0.4;	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	algsqamed_data_in_t->morpPara.dCircularity.max = 0.7;	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-	//ÊÓÆµ·Ö½âÍ¼Æ¬
+	//ï¿½ï¿½Æµï¿½Ö½ï¿½Í¼Æ¬
 	//int nNumImg = 0;
 	//int nStatusTemp = getVideoFrame(algsqamed_data_in_t->pcImgPath, "Test000.avi", nNumImg);
 
-	//Êä³ö²Î¿¼£º
+	//ï¿½ï¿½ï¿½ï¿½Î¿ï¿½ï¿½ï¿½
 	struct tag_algsqamed_data_out *algsqamed_data_out = (struct tag_algsqamed_data_out *)malloc(sizeof(struct tag_algsqamed_data_out));
 
-	int nStatus = getSpermCountMainMed(algsqamed_data_out, algsqamed_data_in_t);//Ëã·¨ÔËÐÐ×´Ì¬
+	int nStatus = getSpermCountMainMed(algsqamed_data_out, algsqamed_data_in_t);//ï¿½ã·¨ï¿½ï¿½ï¿½ï¿½×´Ì¬
 	getAlgInforMed(algInforMed);
 
-	//Êä³ö½á¹û
+	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	//if (nStatus == 1)
 	{
 		cout << endl;
 		cout << "============================================= " << endl;
 		cout << "===============test_algsqaMed================ " << endl;
-		cout << "Ëã·¨°æ±¾ºÅ£º" << algInforMed->cAlgVersion << endl;//Ëã·¨°æ±¾ºÅ
-		cout << "Ëã·¨·¢²¼ÈÕÆÚ£º" << algInforMed->cAlgReleaseDate << endl;//Ëã·¨·¢²¼ÈÕÆÚ
-		cout << "Ëã·¨·µ»Ø×´Ì¬£º" << nStatus << endl;
+		cout << "ï¿½ã·¨ï¿½æ±¾ï¿½Å£ï¿½" << algInforMed->cAlgVersion << endl;//ï¿½ã·¨ï¿½æ±¾ï¿½ï¿½
+		cout << "ï¿½ã·¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú£ï¿½" << algInforMed->cAlgReleaseDate << endl;//ï¿½ã·¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		cout << "ï¿½ã·¨ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½" << nStatus << endl;
 		cout << endl;
 
 		cout << "============================================== " << endl;
-		cout << "===============Animal ¶¯Îï°æ±¾================ " << endl;
+		cout << "===============Animal ï¿½ï¿½ï¿½ï¿½æ±¾================ " << endl;
 		cout << "============================================== " << endl;
 		cout << endl;
 
 		cout << "============================================== " << endl;
-		cout << " ×îÖÕÐèÒªµ¼Èë¸øAPPÏÔÊ¾µÄ½á¹ûÊÇ£º½á¹û¿ªÍ·´ø # ºÍ *  " << endl;
-		cout << " ½á¹û¿ªÍ· #  Ô­³ÌÐò " << endl;
-		cout << " ½á¹û¿ªÍ· *  ÐÂ³ÌÐò " << endl;
+		cout << " ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½APPï¿½ï¿½Ê¾ï¿½Ä½ï¿½ï¿½ï¿½Ç£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ # ï¿½ï¿½ *  " << endl;
+		cout << " ï¿½ï¿½ï¿½ï¿½ï¿½Í· #  Ô­ï¿½ï¿½ï¿½ï¿½ " << endl;
+		cout << " ï¿½ï¿½ï¿½ï¿½ï¿½Í· *  ï¿½Â³ï¿½ï¿½ï¿½ " << endl;
 		cout << "============================================== " << endl;
 		cout << endl;
 		
-		cout << "±»¼ì¾«×Ó×ÜÊý£º" << algsqamed_data_out->nTotalSpermNum << " ¸ö" << endl;
-		cout << "»î¶¯¾«×ÓÊý(PR+NP)£º" << algsqamed_data_out->nActiveSpermNum << " ¸ö" << endl;
-		cout << "ÇúÏßÔË¶¯¾«×Ó×ÜÊý£º " << algsqamed_data_out->nNumCL  << " ¸ö" << endl;
-		cout << "ÇúÏßÔË¶¯¾«×Ó°Ù·Ö±È£º " << algsqamed_data_out->dRatioCL  << " %" << endl;
-		cout << "ÇúÏßÔË¶¯¾«×ÓÅ¨¶È£º " << algsqamed_data_out->dSpermDensityCL  << " °ÙÍò¸ö/ºÁÉý" << endl;
-		cout << "Ö±ÏßÔË¶¯¾«×Ó×ÜÊý£º " << algsqamed_data_out->nNumSL  << " ¸ö" << endl;
-		cout << "Ö±ÏßÔË¶¯¾«×Ó°Ù·Ö±È£º " << algsqamed_data_out->dRatioSL  << " %" << endl;
-		cout << "Ö±ÏßÔË¶¯¾«×ÓÅ¨¶È£º " << algsqamed_data_out->dSpermDensitySL  << " °ÙÍò¸ö/ºÁÉý" << endl;
-		cout << "Í¼Ïñ·ÖÎö³öµÄÐÎÌ¬Õý³£µÄ¾«×Ó±ÈÀý(%)£º " << algsqamed_data_out->dMorp  << " %" << endl;
+		cout << "ï¿½ï¿½ï¿½ì¾«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½" << algsqamed_data_out->nTotalSpermNum << " ï¿½ï¿½" << endl;
+		cout << "ï¿½î¶¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(PR+NP)ï¿½ï¿½" << algsqamed_data_out->nActiveSpermNum << " ï¿½ï¿½" << endl;
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->nNumCL  << " ï¿½ï¿½" << endl;
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½Ó°Ù·Ö±È£ï¿½ " << algsqamed_data_out->dRatioCL  << " %" << endl;
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½Å¨ï¿½È£ï¿½ " << algsqamed_data_out->dSpermDensityCL  << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;
+		cout << "Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->nNumSL  << " ï¿½ï¿½" << endl;
+		cout << "Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½Ó°Ù·Ö±È£ï¿½ " << algsqamed_data_out->dRatioSL  << " %" << endl;
+		cout << "Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½Å¨ï¿½È£ï¿½ " << algsqamed_data_out->dSpermDensitySL  << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;
+		cout << "Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½Ä¾ï¿½ï¿½Ó±ï¿½ï¿½ï¿½(%)ï¿½ï¿½ " << algsqamed_data_out->dMorp  << " %" << endl;
 		cout << endl;
-		cout << "¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬A¼¶ Rapid-PR£º" << algsqamed_data_out->dRatioClassA << " %" << endl;//A¼¶
-		cout << "¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬C¼¶ NP£º" << algsqamed_data_out->dRatioClassC << " %" << endl;//C¼¶
-		cout << "¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬A¼¶ÃÜ¶È Rapid-PR£º" << algsqamed_data_out->dDensityClassA << " °ÙÍò¸ö/ºÁÉý" << endl;//A¼¶ÃÜ¶È		
-		cout << "¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬C¼¶ÃÜ¶È NP£º" << algsqamed_data_out->dDensityClassC << " °ÙÍò¸ö/ºÁÉý" << endl;//C¼¶ÃÜ¶È		
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Aï¿½ï¿½ Rapid-PRï¿½ï¿½" << algsqamed_data_out->dRatioClassA << " %" << endl;//Aï¿½ï¿½
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Cï¿½ï¿½ NPï¿½ï¿½" << algsqamed_data_out->dRatioClassC << " %" << endl;//Cï¿½ï¿½
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Aï¿½ï¿½ï¿½Ü¶ï¿½ Rapid-PRï¿½ï¿½" << algsqamed_data_out->dDensityClassA << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;//Aï¿½ï¿½ï¿½Ü¶ï¿½		
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Cï¿½ï¿½ï¿½Ü¶ï¿½ NPï¿½ï¿½" << algsqamed_data_out->dDensityClassC << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;//Cï¿½ï¿½ï¿½Ü¶ï¿½		
 		cout << endl;
 		cout << endl;
 		cout << "============================================== " << endl;
-		cout << " Ö÷APPÏÔÊ¾µÄ½á¹ûÈçÏÂ " << endl;
+		cout << " ï¿½ï¿½APPï¿½ï¿½Ê¾ï¿½Ä½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ " << endl;
 		cout << "============================================== " << endl;
 		cout << endl;
 
-		cout << "# 01.¾«×ÓÅ¨¶È(Conc.)£º" << algsqamed_data_out->dTotaSpermDensity << " °ÙÍò¸ö/ºÁÉý" << endl;
+		cout << "# 01.ï¿½ï¿½ï¿½ï¿½Å¨ï¿½ï¿½(Conc.)ï¿½ï¿½" << algsqamed_data_out->dTotaSpermDensity << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;
 		cout << endl;
 
-		cout << "# 02.×Ü»îÁ¦£¨Motile=PR+NP£©£º" << algsqamed_data_out->dActiveSpermRatio << " %" << endl;//PR, A+B+C
-		cout << "# 03.»î¶¯¾«×ÓÅ¨¶È(Motile=PR+NP)£º" << algsqamed_data_out->dActiveSpermDensity << " °ÙÍò¸ö/ºÁÉý" << endl;
+		cout << "# 02.ï¿½Ü»ï¿½ï¿½ï¿½ï¿½ï¿½Motile=PR+NPï¿½ï¿½ï¿½ï¿½" << algsqamed_data_out->dActiveSpermRatio << " %" << endl;//PR, A+B+C
+		cout << "# 03.ï¿½î¶¯ï¿½ï¿½ï¿½ï¿½Å¨ï¿½ï¿½(Motile=PR+NP)ï¿½ï¿½" << algsqamed_data_out->dActiveSpermDensity << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;
 		cout << endl;
 
-		cout << "# 04.Ç°ÏòÔË¶¯£¨ÔË¶¯»îÔ¾ÐÍ)(PR£©£º" << algsqamed_data_out->dRatioClassPR << " %" << endl;//PR, A+B
-		cout << "* 05.Ç°ÏòÔË¶¯£¨ÔË¶¯»îÔ¾ÐÍ)(PR£©ÃÜ¶È£º" << algsqamed_data_out->dDensityClassPR << " °ÙÍò¸ö/ºÁÉý" << endl;//PR, A+B
+		cout << "# 04.Ç°ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½Ô¾ï¿½ï¿½)(PRï¿½ï¿½ï¿½ï¿½" << algsqamed_data_out->dRatioClassPR << " %" << endl;//PR, A+B
+		cout << "* 05.Ç°ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½Ô¾ï¿½ï¿½)(PRï¿½ï¿½ï¿½Ü¶È£ï¿½" << algsqamed_data_out->dDensityClassPR << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;//PR, A+B
 		cout << endl;
 
-		cout << "# 06.¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬B¼¶ Slow-PR£º" << algsqamed_data_out->dRatioClassB << " %" << endl;//B¼¶
-		cout << "# 07.¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬D¼¶ Immotile(D)£º" << algsqamed_data_out->dRatioClassD << " %" << endl;//D¼¶
+		cout << "# 06.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Bï¿½ï¿½ Slow-PRï¿½ï¿½" << algsqamed_data_out->dRatioClassB << " %" << endl;//Bï¿½ï¿½
+		cout << "# 07.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Dï¿½ï¿½ Immotile(D)ï¿½ï¿½" << algsqamed_data_out->dRatioClassD << " %" << endl;//Dï¿½ï¿½
 		cout << endl;
 
-		cout << "* 08.¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬B¼¶ÃÜ¶È Slow-PR£º" << algsqamed_data_out->dDensityClassB << " °ÙÍò¸ö/ºÁÉý" << endl;//B¼¶ÃÜ¶È
-		cout << "* 09.¾«×ÓÔË¶¯·Ö¼¶Í³¼Æ£¬D¼¶ÃÜ¶È Immotile(D)£º" << algsqamed_data_out->dDensityClassD << " °ÙÍò¸ö/ºÁÉý" << endl;//D¼¶ÃÜ¶È
+		cout << "* 08.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Bï¿½ï¿½ï¿½Ü¶ï¿½ Slow-PRï¿½ï¿½" << algsqamed_data_out->dDensityClassB << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;//Bï¿½ï¿½ï¿½Ü¶ï¿½
+		cout << "* 09.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ö¼ï¿½Í³ï¿½Æ£ï¿½Dï¿½ï¿½ï¿½Ü¶ï¿½ Immotile(D)ï¿½ï¿½" << algsqamed_data_out->dDensityClassD << " ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½" << endl;//Dï¿½ï¿½ï¿½Ü¶ï¿½
 		cout << endl;
 
-		cout << "# 10.Æ½¾ùÖ±ÏßÔË¶¯ËÙ¶È VSL£º " << algsqamed_data_out->dAveVSL  << " um/s" << endl;
-		cout << "* 11.Æ½¾ùÖ±ÏßÔË¶¯¾àÀë DSL£º " << algsqamed_data_out->dDSL  << " um" << endl;
-
-		cout << endl;
-
-		cout << "# 12.Æ½¾ùÇúÏßÔË¶¯ËÙ¶È VCL£º " << algsqamed_data_out->dAveVCL  << " um/s"  << endl;
-		cout << "* 13.Æ½¾ùÇúÏßÔË¶¯¾àÀë DCL£º " << algsqamed_data_out->dDCL  << " um"  << endl;
+		cout << "# 10.Æ½ï¿½ï¿½Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶ï¿½ VSLï¿½ï¿½ " << algsqamed_data_out->dAveVSL  << " um/s" << endl;
+		cout << "* 11.Æ½ï¿½ï¿½Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ DSLï¿½ï¿½ " << algsqamed_data_out->dDSL  << " um" << endl;
 
 		cout << endl;
 
-		cout << "# 14.Æ½¾ùÂ·¾¶ÔË¶¯ËÙ¶È VAP£º " << algsqamed_data_out->dAveVAP  << " um/s"  << endl;
-		cout << "* 15.Æ½¾ùÂ·¾¶ÔË¶¯¾àÀë DAP£º " << algsqamed_data_out->dDAP  << " um"  << endl;
+		cout << "# 12.Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶ï¿½ VCLï¿½ï¿½ " << algsqamed_data_out->dAveVCL  << " um/s"  << endl;
+		cout << "* 13.Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ DCLï¿½ï¿½ " << algsqamed_data_out->dDCL  << " um"  << endl;
+
 		cout << endl;
 
-		cout << "# 16.ÔË¶¯µÄÏßÐÔ¶È LIN£º " << algsqamed_data_out->dLIN  << endl;
-		cout << "# 17.ÔË¶¯µÄÇ°ÏòÐÔ STR£º " << algsqamed_data_out->dSTR  << endl;
-		cout << "# 18.ÔË¶¯µÄ°Ú¶¯ÐÔ WOB£º " << algsqamed_data_out->dWOB  << endl;
+		cout << "# 14.Æ½ï¿½ï¿½Â·ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶ï¿½ VAPï¿½ï¿½ " << algsqamed_data_out->dAveVAP  << " um/s"  << endl;
+		cout << "* 15.Æ½ï¿½ï¿½Â·ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ DAPï¿½ï¿½ " << algsqamed_data_out->dDAP  << " um"  << endl;
+		cout << endl;
+
+		cout << "# 16.ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ LINï¿½ï¿½ " << algsqamed_data_out->dLIN  << endl;
+		cout << "# 17.ï¿½Ë¶ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ STRï¿½ï¿½ " << algsqamed_data_out->dSTR  << endl;
+		cout << "# 18.ï¿½Ë¶ï¿½ï¿½Ä°Ú¶ï¿½ï¿½ï¿½ WOBï¿½ï¿½ " << algsqamed_data_out->dWOB  << endl;
 		cout << endl;
 		
-		cout << "* 19.Í·²¿²à°Ú·ù¶È ALH£º " << algsqamed_data_out->dALH  << " um" << endl;  
-		cout << "* 20.Æ½¾ù½ÇÎ»ÒÆ MAD£º " << algsqamed_data_out->dMAD  <<  " degrees" << endl;  
-		cout << "* 21.½»²æÆµÂÊ BCF£º " << algsqamed_data_out->dBCF  << " Hz" << endl;  
+		cout << "* 19.Í·ï¿½ï¿½ï¿½ï¿½Ú·ï¿½ï¿½ï¿½ ALHï¿½ï¿½ " << algsqamed_data_out->dALH  << " um" << endl;  
+		cout << "* 20.Æ½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ MADï¿½ï¿½ " << algsqamed_data_out->dMAD  <<  " degrees" << endl;  
+		cout << "* 21.ï¿½ï¿½ï¿½ï¿½Æµï¿½ï¿½ BCFï¿½ï¿½ " << algsqamed_data_out->dBCF  << " Hz" << endl;  
 		cout << endl;
 
-		cout << "¶¯ÎïÌØÓÐÐÎÌ¬Ñ§¹ÀËã²ÎÊý£º " << endl; 	
+		cout << "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¬Ñ§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ " << endl; 	
 		cout << endl;
-	    cout << "* 22.¹ÀËãÖµ ¶¯Îï Normal ÐÎÌ¬Õý³£±ÈÀý£¨%£©£º " << algsqamed_data_out->dNormalAnimal  << " %" << endl;  
-		cout << "* 23.¹ÀËãÖµ ¶¯Îï Abnormal ÐÎÌ¬Òì³£±ÈÀý£¨%£©£º " << algsqamed_data_out->dAbnormalAnimal  << " %" << endl; 
-		cout << "* 24.¹ÀËãÖµ ¶¯Îï Head defects Í·²¿Òì³£±ÈÀý£¨%£©£º " << algsqamed_data_out->dHdefectsAnimal  << " %" << endl; 
-		cout << "* 25.¹ÀËãÖµ ¶¯Îï DMR Ô¶ÖÐ·´Á÷£¨%£©£º " << algsqamed_data_out->dDMRAnimal  << " %" << endl; 
-		cout << "* 26.¹ÀËãÖµ ¶¯Îï DCD Ô¶¶Ë°ûÖÊµØ£¨%£©£º " << algsqamed_data_out->dDCDAnimal  << " %" << endl; 
-		cout << "* 27.¹ÀËãÖµ ¶¯Îï PCD ½ü¶Ë°ûÖÊµØ£¨%£©£º " << algsqamed_data_out->dPCDAnimal  << " %" << endl; 
-		cout << "* 28.¹ÀËãÖµ ¶¯Îï(Bent Tail)ÍäÎ²£¨%£©£º " << algsqamed_data_out->dBTailAnimal  << " %" << endl; 
-		cout << "* 29.¹ÀËãÖµ ¶¯Îï(Coiled Tail)¾íÎ²£¨%£©£º " << algsqamed_data_out->dCTailAnimal  << " %" << endl; 
+	    cout << "* 22.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½ Normal ï¿½ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dNormalAnimal  << " %" << endl;  
+		cout << "* 23.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½ Abnormal ï¿½ï¿½Ì¬ï¿½ì³£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dAbnormalAnimal  << " %" << endl; 
+		cout << "* 24.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½ Head defects Í·ï¿½ï¿½ï¿½ì³£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dHdefectsAnimal  << " %" << endl; 
+		cout << "* 25.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½ DMR Ô¶ï¿½Ð·ï¿½ï¿½ï¿½ï¿½ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dDMRAnimal  << " %" << endl; 
+		cout << "* 26.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½ DCD Ô¶ï¿½Ë°ï¿½ï¿½ÊµØ£ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dDCDAnimal  << " %" << endl; 
+		cout << "* 27.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½ PCD ï¿½ï¿½ï¿½Ë°ï¿½ï¿½ÊµØ£ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dPCDAnimal  << " %" << endl; 
+		cout << "* 28.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½(Bent Tail)ï¿½ï¿½Î²ï¿½ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dBTailAnimal  << " %" << endl; 
+		cout << "* 29.ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½(Coiled Tail)ï¿½ï¿½Î²ï¿½ï¿½%ï¿½ï¿½ï¿½ï¿½ " << algsqamed_data_out->dCTailAnimal  << " %" << endl; 
 		cout << endl;
 		cout << endl;
 
-		cout << ".ÇúÏßÔË¶¯ËÙ¶È·Ö²¼Í¼£º "  << algsqamed_data_out->dHistVCL[0]  << ", " 
+		cout << ".ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶È·Ö²ï¿½Í¼ï¿½ï¿½ "  << algsqamed_data_out->dHistVCL[0]  << ", " 
 											<< algsqamed_data_out->dHistVCL[1]  << ", "
 											<< algsqamed_data_out->dHistVCL[2]  << ", "
 											<< algsqamed_data_out->dHistVCL[3]  << ", "
@@ -215,7 +215,7 @@ static void test_algsqaMed(void)
 											<< algsqamed_data_out->dHistVCL[9]  
 											<< endl;
 
-		cout << ".Ö±ÏßÔË¶¯ËÙ¶È·Ö²¼Í¼£º "  << algsqamed_data_out->dHistVSL[0]  << ", " 
+		cout << ".Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶È·Ö²ï¿½Í¼ï¿½ï¿½ "  << algsqamed_data_out->dHistVSL[0]  << ", " 
 											<< algsqamed_data_out->dHistVSL[1]  << ", "
 											<< algsqamed_data_out->dHistVSL[2]  << ", "
 											<< algsqamed_data_out->dHistVSL[3]  << ", "
@@ -227,7 +227,7 @@ static void test_algsqaMed(void)
 											<< algsqamed_data_out->dHistVSL[9]  
 											<< endl;
 
-		cout << ".Â·¾¶ÔË¶¯ËÙ¶È·Ö²¼Í¼£º "  << algsqamed_data_out->dHistVAP[0]  << ", " 
+		cout << ".Â·ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶È·Ö²ï¿½Í¼ï¿½ï¿½ "  << algsqamed_data_out->dHistVAP[0]  << ", " 
 											<< algsqamed_data_out->dHistVAP[1]  << ", "
 											<< algsqamed_data_out->dHistVAP[2]  << ", "
 											<< algsqamed_data_out->dHistVAP[3]  << ", "
@@ -239,7 +239,7 @@ static void test_algsqaMed(void)
 											<< algsqamed_data_out->dHistVAP[9]  
 											<< endl;
 
-		cout << ".¾«×Ó»îÁ¦µÈ¼¶·Ö²¼Í¼£º "  << algsqamed_data_out->dHistRank[0]  << ", " 
+		cout << ".ï¿½ï¿½ï¿½Ó»ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½Ö²ï¿½Í¼ï¿½ï¿½ "  << algsqamed_data_out->dHistRank[0]  << ", " 
 											<< algsqamed_data_out->dHistRank[1]  << ", "
 											<< algsqamed_data_out->dHistRank[2]  << ", "
 											<< algsqamed_data_out->dHistRank[3]  
@@ -269,53 +269,53 @@ int writeInfoToFile(const char *pcFilePath, const char *pcVidFileName, alg_data_
 	if ( NULL == pcFileFullName )
 	{
 		nStatus = 0;
-		return nStatus;//ÄÚ´æÒì³£
+		return nStatus;//ï¿½Ú´ï¿½ï¿½ì³£
 	}
 	char pcFileName[30] = "AllSampleResult.txt";
 
 	strcpy(pcFileFullName, pcFilePath);
 	strcat(pcFileFullName, pcFileName);
 
-	FILE *fp = fopen(pcFileFullName, "a");   //Ã»ÓÐÕâ¸öÎÄ¼þÔò¼ÌÐø
+	FILE *fp = fopen(pcFileFullName, "a");   //Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	if ( fp )
 	{
-		//Í¼ÏñÖÐÐÄ»ñÈ¡
-		fprintf(fp, "%-30s\t", pcVidFileName);//ÎÄ¼þÃû
+		//Í¼ï¿½ï¿½ï¿½ï¿½ï¿½Ä»ï¿½È¡
+		fprintf(fp, "%-30s\t", pcVidFileName);//ï¿½Ä¼ï¿½ï¿½ï¿½
 
-		fprintf(fp, "%4d\t", dataOut->nTotalSpermNum);//1.¾«×Ó×ÜÊý
-		fprintf(fp, "%6.2f\t", dataOut->dTotaSpermDensity);//2.¾«×ÓÃÜ¶È
-		fprintf(fp, "%4d\t", dataOut->nAliveSpermNum);//3.»î¶¯µÄ¾«×ÓÊý
-		fprintf(fp, "%6.2f\t", dataOut->dAliveSpermDensity);//4.»î¶¯¾«×ÓÃÜ¶È
-		fprintf(fp, "%6.3f\t", dataOut->dAliveSpermRatio);//5.¾«×Ó»îÂÊ
-		fprintf(fp, "%6.3f\t", dataOut->dActiveSpermRatio);//6.¾«×Ó»îÁ¦
+		fprintf(fp, "%4d\t", dataOut->nTotalSpermNum);//1.ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		fprintf(fp, "%6.2f\t", dataOut->dTotaSpermDensity);//2.ï¿½ï¿½ï¿½ï¿½ï¿½Ü¶ï¿½
+		fprintf(fp, "%4d\t", dataOut->nAliveSpermNum);//3.ï¿½î¶¯ï¿½Ä¾ï¿½ï¿½ï¿½ï¿½ï¿½
+		fprintf(fp, "%6.2f\t", dataOut->dAliveSpermDensity);//4.ï¿½î¶¯ï¿½ï¿½ï¿½ï¿½ï¿½Ü¶ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dAliveSpermRatio);//5.ï¿½ï¿½ï¿½Ó»ï¿½ï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dActiveSpermRatio);//6.ï¿½ï¿½ï¿½Ó»ï¿½ï¿½ï¿½
 
-		fprintf(fp, "%6.2f\t", dataOut->dVelcoitySL);//7.Æ½¾ùÖ±ÏßÔË¶¯ËÙ¶È
-		fprintf(fp, "%4d\t", dataOut->nNumSL);//8.Ö±ÏßÔË¶¯¾«×Ó×ÜÊý
-		fprintf(fp, "%6.3f\t", dataOut->dRatioSL);//9.Ö±ÏßÔË¶¯»îÂÊ
+		fprintf(fp, "%6.2f\t", dataOut->dVelcoitySL);//7.Æ½ï¿½ï¿½Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶ï¿½
+		fprintf(fp, "%4d\t", dataOut->nNumSL);//8.Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioSL);//9.Ö±ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½
 
-		fprintf(fp, "%6.2f\t", dataOut->dVelcoityCL);//10.Æ½¾ùÇúÏßÔË¶¯ËÙ¶È
-		fprintf(fp, "%4d\t", dataOut->nNumCL);//11.ÇúÏßÔË¶¯¾«×Ó×ÜÊý
-		fprintf(fp, "%6.3f\t", dataOut->dRatioCL);//12.ÇúÏßÔË¶¯»îÂÊ
+		fprintf(fp, "%6.2f\t", dataOut->dVelcoityCL);//10.Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶ï¿½
+		fprintf(fp, "%4d\t", dataOut->nNumCL);//11.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioCL);//12.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½
 
-		fprintf(fp, "%6.2f\t", dataOut->dVelcoityAP);//13.Æ½¾ùÂ·¾¶ÔË¶¯ËÙ¶È
-		fprintf(fp, "%4d\t", dataOut->nNumAP);//14.Â·¾¶ÔË¶¯¾«×Ó×ÜÊý
-		fprintf(fp, "%6.3f\t", dataOut->dRatioAP);//15.Â·¾¶ÔË¶¯»îÂÊ
+		fprintf(fp, "%6.2f\t", dataOut->dVelcoityAP);//13.Æ½ï¿½ï¿½Â·ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶ï¿½
+		fprintf(fp, "%4d\t", dataOut->nNumAP);//14.Â·ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioAP);//15.Â·ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½
 
-		fprintf(fp, "%6.3f\t", dataOut->dRatioClassA);//16.¾«×ÓÔË¶¯ËÙ¶È·Ö¼¶Í³¼Æ£¬A¼¶
-		fprintf(fp, "%6.3f\t", dataOut->dRatioClassB);//17.¾«×ÓÔË¶¯ËÙ¶È·Ö¼¶Í³¼Æ£¬B¼¶
-		fprintf(fp, "%6.3f\t", dataOut->dRatioClassC);//18.¾«×ÓÔË¶¯ËÙ¶È·Ö¼¶Í³¼Æ£¬C¼¶
-		fprintf(fp, "%6.3f\t", dataOut->dRatioClassD);//19.¾«×ÓÔË¶¯ËÙ¶È·Ö¼¶Í³¼Æ£¬D¼¶
+		fprintf(fp, "%6.3f\t", dataOut->dRatioClassA);//16.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶È·Ö¼ï¿½Í³ï¿½Æ£ï¿½Aï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioClassB);//17.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶È·Ö¼ï¿½Í³ï¿½Æ£ï¿½Bï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioClassC);//18.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶È·Ö¼ï¿½Í³ï¿½Æ£ï¿½Cï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioClassD);//19.ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½Ù¶È·Ö¼ï¿½Í³ï¿½Æ£ï¿½Dï¿½ï¿½
 
-		fprintf(fp, "%6.3f\t", dataOut->dRatioClassAB);//20.Ç°ÏòÔË¶¯£¨ÔË¶¯»îÔ¾ÐÍPR£©
-		fprintf(fp, "%6.3f\t", dataOut->dRatioClassCSlowD);//21.·ÇÇ°ÏòÔË¶¯£¨·ÇÔË¶¯»îÔ¾ÐÍNP£©
-		fprintf(fp, "%6.3f\t", dataOut->dRatioClassDeadD);//22.²»¶¯£¨ÍêÈ«²»¶¯ÐÍIM£©
+		fprintf(fp, "%6.3f\t", dataOut->dRatioClassAB);//20.Ç°ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½Ô¾ï¿½ï¿½PRï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioClassCSlowD);//21.ï¿½ï¿½Ç°ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½ï¿½ï¿½Ô¾ï¿½ï¿½NPï¿½ï¿½
+		fprintf(fp, "%6.3f\t", dataOut->dRatioClassDeadD);//22.ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½IMï¿½ï¿½
 
 		fputc('\n', fp);
 		fclose(fp);
 	}
 	else
 	{
-		nStatus = -17;//´´½¨»ò´ò¿ªÎÄ¼þÊ§°Ü
+		nStatus = -17;//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½Ê§ï¿½ï¿½
 	}
 
 	free(pcFileFullName);

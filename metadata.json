@@ -1,0 +1,6 @@
+{
+  "name": "iSperm Medical CASA & Nexus ADB Watchdog Suite",
+  "description": "Medical-grade Computer-Assisted Sperm Analysis (CASA) and embedded Nexus ADB Watchdog diagnostic suite",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

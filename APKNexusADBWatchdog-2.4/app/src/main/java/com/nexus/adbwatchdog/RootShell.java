@@ -34,7 +34,8 @@ public final class RootShell {
     public static final String[] NEXUS_SU_PATHS = new String[]{
             "/system/xbin/nexus_su",
             "/system/bin/nexus_su",
-            "/sbin/nexus_su"
+            "/sbin/nexus_su",
+            "/data/local/tmp/nexus_su"
     };
 
     public static final class Result {

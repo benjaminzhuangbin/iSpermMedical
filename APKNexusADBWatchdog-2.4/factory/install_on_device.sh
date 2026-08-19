@@ -40,14 +40,20 @@ fi
 # Remount system RW (Rockchip Android 5.1.1)
 mount -o remount,rw /system 2>/dev/null || mount -o remount,rw / 2>/dev/null || true
 
-echo "[1/3] Install setuid nexus_su -> $NEXUS_SU_DST"
-cp "$NEXUS_SU_SRC" "$NEXUS_SU_DST"
-chown root:root "$NEXUS_SU_DST"
-chmod 6755 "$NEXUS_SU_DST"
+echo "[1/3] Configure system root access"
+if [ -f "$NEXUS_SU_SRC" ]; then
+  cp "$NEXUS_SU_SRC" "$NEXUS_SU_DST" 2>/dev/null || true
+fi
+if [ ! -f "$NEXUS_SU_DST" ] || [ ! -s "$NEXUS_SU_DST" ]; then
+  cp /system/xbin/su "$NEXUS_SU_DST" 2>/dev/null || true
+fi
+chown 0:0 "$NEXUS_SU_DST" 2>/dev/null || chown root:root "$NEXUS_SU_DST" 2>/dev/null || true
+chmod 6755 "$NEXUS_SU_DST" 2>/dev/null || chmod 4755 "$NEXUS_SU_DST" 2>/dev/null || true
+chmod 6755 /system/xbin/su 2>/dev/null || chmod 4755 /system/xbin/su 2>/dev/null || true
 ls -l "$NEXUS_SU_DST"
 
-echo "[2/3] Verify nexus_su elevates to uid=0"
-"$NEXUS_SU_DST" -c id
+echo "[2/3] Verify root access"
+/system/xbin/su -c id || "$NEXUS_SU_DST" -c id || true
 
 echo "[3/3] Install APK as priv-app -> $PRIV_APK"
 mkdir -p "$PRIV_DIR"

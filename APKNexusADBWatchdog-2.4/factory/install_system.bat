@@ -12,24 +12,34 @@ if not exist "factory\nexus_su" (
 )
 if not exist "release\NexusADBWatchdog.apk" (
   if exist "app\build\outputs\apk\debug\app-debug.apk" (
+    if not exist "release" mkdir "release"
     copy /Y "app\build\outputs\apk\debug\app-debug.apk" "release\NexusADBWatchdog.apk" >nul
   ) else (
-    echo ERROR: release\NexusADBWatchdog.apk missing. Build APK first.
-    exit /b 1
+    echo [info] Building APK from gradle...
+    call gradlew.bat assembleDebug
+    if exist "app\build\outputs\apk\debug\app-debug.apk" (
+      if not exist "release" mkdir "release"
+      copy /Y "app\build\outputs\apk\debug\app-debug.apk" "release\NexusADBWatchdog.apk" >nul
+    )
   )
 )
 
 echo [push] nexus_su + APK + install script
 adb push factory\nexus_su /data/local/tmp/nexus_su
-adb push release\NexusADBWatchdog.apk /data/local/tmp/NexusADBWatchdog.apk
+if exist "release\NexusADBWatchdog.apk" (
+  adb push release\NexusADBWatchdog.apk /data/local/tmp/NexusADBWatchdog.apk
+) else if exist "app\build\outputs\apk\debug\app-debug.apk" (
+  adb push app\build\outputs\apk\debug\app-debug.apk /data/local/tmp/NexusADBWatchdog.apk
+)
 adb push factory\install_on_device.sh /data/local/tmp/install_on_device.sh
+adb shell "chmod 755 /data/local/tmp/install_on_device.sh"
 if errorlevel 1 (
   echo ERROR: adb push failed
   exit /b 1
 )
 
 echo [run] su factory install
-adb shell "su -c 'sh /data/local/tmp/install_on_device.sh'"
+adb shell su 0 /system/bin/sh /data/local/tmp/install_on_device.sh || adb shell su -c "/system/bin/sh /data/local/tmp/install_on_device.sh"
 if errorlevel 1 (
   echo ERROR: factory install failed
   exit /b 1

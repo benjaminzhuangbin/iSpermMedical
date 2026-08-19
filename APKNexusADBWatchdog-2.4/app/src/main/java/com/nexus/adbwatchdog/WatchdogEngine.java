@@ -41,6 +41,13 @@ public final class WatchdogEngine {
         if (!rootChecked) {
             RootShell.resetRootCache();
             rootCached = RootShell.hasRoot();
+            
+            // If root not present, attempt auto-provisioning via local ADB (127.0.0.1:5555)
+            if (!rootCached) {
+                logger.line("ROOT not found on startup -> attempting Local ADB self-provisioning via 127.0.0.1:5555...");
+                rootCached = LocalAdbProvisioner.trySelfInstall(appContext);
+            }
+
             rootChecked = true;
             logger.line("======= Nexus ADB Watchdog 2.4 APK started =======");
             logger.line("ROOT=" + (rootCached ? "YES" : "NO"));
@@ -50,15 +57,14 @@ public final class WatchdogEngine {
             logger.line("SU_PATH=" + RootShell.getSuPath());
             if (!rootCached) {
                 logger.line("ROOT_FAIL_DETAIL=" + RootShell.getLastFailDetail());
-                logger.line("ROOT_HINT=factory install /system/xbin/nexus_su (setuid) — see docs/ROOT_SOLUTION.md");
+                logger.line("ROOT_HINT=Ensure TCP 5555 is listening or factory install nexus_su");
             }
         }
         st.rootOk = rootCached;
         if (!st.rootOk) {
-            // Re-probe each cycle until granted (SuperSU prompt / first allow)
-            RootShell.resetRootCache();
-            st.rootOk = RootShell.hasRoot();
-            rootCached = st.rootOk;
+            // Re-probe each cycle or re-attempt local ADB provisioning
+            rootCached = LocalAdbProvisioner.trySelfInstall(appContext);
+            st.rootOk = rootCached;
         }
         st.rootMethod = RootShell.getRootMethod();
         st.rootUid = RootShell.getRootUid();
