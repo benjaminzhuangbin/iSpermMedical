@@ -1935,7 +1935,8 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 			break;
 		}
 
-		dAliveSpermRatio = nAliveSpermNum/(nTotalSpermNum + EPSINON);
+		//  V1.0.3-H 版本 计算粗筛存活率（注意补上 * 100 转换为百分比）
+		dAliveSpermRatio = 100.0 * nAliveSpermNum/(nTotalSpermNum + EPSINON);
 		dTotaSpermDensity = dAlphaDens * nTotalSpermNum;
 		dAliveSpermDensity = dAlphaDens * nAliveSpermNum;
 		
@@ -7673,12 +7674,27 @@ TraceInfor * iniSpermTrace(int nNumTrace, int nImgFileNum)
 int getSpermTrace(const char **ppcFilePath, const char **ppcResImgFile, const char * pcResultPath, int const& nImgFileNum, SSettings const& SParaInput, ParaRange *pSAveSpermRange, algsqamed_data_out *dataOut, int nCenterPara[])
 {
 	int nStatus = 1;
+//
+//	//轨迹数据初始化，pSSpermTraceInfor[i*nImgFileNum+j]表示第i条轨迹上的第j个点
+//	int nNumSperm = 0;
+//	if (dataOut->nActiveSpermNum >5)//活动精子数
+//	{
+//		nNumSperm = dataOut->nActiveSpermNum;
+//	}
+//	else
+//	{
+//		nNumSperm = MAXSPERMNUM;
+//	}
+//	int nNumTrace = (int)((nNumSperm*nImgFileNum+3*nNumSperm)/4);//轨迹数量（轨迹数据-行）
+//	int nTraceIndex = 0;
 
-	//轨迹数据初始化，pSSpermTraceInfor[i*nImgFileNum+j]表示第i条轨迹上的第j个点
+// V1.0.3-H 版本  轨迹数据初始化，根据整幅图像的总精子数预留足够的轨迹缓冲空间，防止小活动数时缓冲区溢出导致 -15 退出
 	int nNumSperm = 0;
-	if (dataOut->nActiveSpermNum >5)//活动精子数
+	if (dataOut->nTotalSpermNum > 0)
 	{
-		nNumSperm = dataOut->nActiveSpermNum;
+		nNumSperm = dataOut->nTotalSpermNum * 2; // 按总数2倍预留充足空间
+		if (nNumSperm < 500) nNumSperm = 500;
+		if (nNumSperm > MAXSPERMNUM) nNumSperm = MAXSPERMNUM;
 	}
 	else
 	{
