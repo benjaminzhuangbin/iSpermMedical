@@ -7802,10 +7802,11 @@ int getSpermTrace(const char **ppcFilePath, const char **ppcResImgFile, const ch
 
 	// V1.0.3-H 版本
 	// ==================== 精子运动灵敏度可调阈值 ====================
-	#define SPERM_VCL_MIN           10.0   // [可调] 曲线速度最小阈值(um/s)，低于此值直接判为D级不动(原代码是2.5太灵敏)
-	#define SPERM_VAP_C_MIN         5.0    // [可调] C级非前向运动的VAP最小门限(um/s)，低于此值不计入C级
-	#define SPERM_VAP_B_MIN         8.0    // [可调] B级慢速前向运动的VAP门限(um/s)，原代码是5.0
-	#define SPERM_SAMPLE_NOISE_GATE 2.0    // [可调] 样本级噪声门限(%)：全片活动率若低于此百分比，全判定为0活力
+	#define SPERM_VCL_MIN           25.0    // [可调] 曲线速度最小阈值(um/s)，低于此值直接判为D级不动(原代码是2.5太灵敏)
+	#define SPERM_VAP_C_MIN       10.0    // [可调] C级非前向运动的VAP最小门限(um/s)，低于此值不计入C级
+	#define SPERM_VAP_B_MIN       12.0    // [可调] B级慢速前向运动的VAP门限(um/s)，原代码是5.0
+	#define SPERM_DSL_MIN       5.0     // [新增] 最小直线净位移(um)，原地抖动位移极小，直接视为死精
+	#define SPERM_SAMPLE_NOISE_GATE 3.0    // [可调] 样本级噪声门限(%)：全片活动率若低于此百分比，全判定为0活力
 	// ==============================================================
 
 
@@ -8714,84 +8715,23 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			// 注意：原来在这里的 nNumActiveTrace++ 和 dataOut->dLIN 累加已经【删除并移入下方】
 			// ==============================================================================
 
-			// 只有通过运动速度阈值校验，确认为运动精子（A/B/C级）时，才计入运动轨迹并累加特征
-			if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN)
-			{
-				nNumActiveTrace ++; // 【正确位置】：只统计真正的活动轨迹数量
-
-				// 【正确位置】：只累加真正活动精子的运动学特征
-				dataOut->dAveVSL += pdTraceMotion[nNumTemp].dVSL;
-				dataOut->dAveVCL += pdTraceMotion[nNumTemp].dVCL;
-				dataOut->dAveVAP += pdTraceMotion[nNumTemp].dVAP;
-				dataOut->dLIN    += pdTraceMotion[nNumTemp].dLIN;
-				dataOut->dSTR    += pdTraceMotion[nNumTemp].dSTR;
-				dataOut->dWOB    += pdTraceMotion[nNumTemp].dWOB;
-				dataOut->dALH    += pdTraceMotion[nNumTemp].dALH;
-				dataOut->dBCF    += pdTraceMotion[nNumTemp].dBCF;
-				dataOut->dMAD    += pdTraceMotion[nNumTemp].dMAD;
-
-				// 直线或曲线分类
-				if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
-				{
-					dataOut->nNumSL++;
-					pnTraceType[i] = 2;//直线2
-				} 
-				else
-				{
-					dataOut->nNumCL++;
-					pnTraceType[i] = 1;//曲线1
-				}
-
-				// 速度分布图
-				int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
-				if (nIndexSL <= 9) dataOut->dHistVSL[nIndexSL]++;
-				
-				int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
-				if (nIndexCL <= 9) dataOut->dHistVCL[nIndexCL]++;
-				
-				int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
-				if (nIndexAP <= 9) dataOut->dHistVAP[nIndexAP]++;
-
-				// 分级A/B/C
-				if(pdTraceMotion[nNumTemp].dVAP >= 25.0)
-				{
-					nNumClassA++;
-				} 
-				else if(pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= 0.6)
-				{
-					nNumClassB++;
-				}
-				else
-				{
-					nNumClassC++;
-				}
-			}
-			else
-			{
-				pnTraceType[i] = 0; // 不动/微动，不绘制运动轨迹
-			}
-
-			// V1.0.3-H 版本 调整累加位置，注释掉下行
-			//dataOut->dAveVSL = dataOut->dAveVSL + pdTraceMotion[nNumTemp].dVSL;
-			//dataOut->dAveVCL = dataOut->dAveVCL + pdTraceMotion[nNumTemp].dVCL;
-			//dataOut->dAveVAP = dataOut->dAveVAP + pdTraceMotion[nNumTemp].dVAP;
-			//dataOut->dLIN = dataOut->dLIN + pdTraceMotion[nNumTemp].dLIN;
-			//dataOut->dSTR = dataOut->dSTR + pdTraceMotion[nNumTemp].dSTR;
-			//dataOut->dWOB = dataOut->dWOB + pdTraceMotion[nNumTemp].dWOB;
-
-			//dataOut->dALH = dataOut->dALH + pdTraceMotion[nNumTemp].dALH;
-			//dataOut->dBCF = dataOut->dBCF + pdTraceMotion[nNumTemp].dBCF;
-			// 加固：单条轨迹 MAD 若为 NaN，不累加，避免污染总均值/同步动物宽窗版本改进MAD
-			if (!_isnan(pdTraceMotion[nNumTemp].dMAD))
-			{
-				dataOut->dMAD = dataOut->dMAD + pdTraceMotion[nNumTemp].dMAD;
-			}
-
-			// V1.0.3-H 版本 大幅提高判活速度门限：将 2.5 改为 10，彻底过滤掉像素抖动产生的虚假位移。
-			// if (pdTraceMotion[nNumTemp].dVCL > 2.5)
-			//if (pdTraceMotion[nNumTemp].dVCL > 10)
+			//// 只有通过运动速度阈值校验，确认为运动精子（A/B/C级）时，才计入运动轨迹并累加特征
+			//if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN)
 			//{
-			//	//直线或曲线分类
+			//	nNumActiveTrace ++; // 【正确位置】：只统计真正的活动轨迹数量
+
+			//	// 【正确位置】：只累加真正活动精子的运动学特征
+			//	dataOut->dAveVSL += pdTraceMotion[nNumTemp].dVSL;
+			//	dataOut->dAveVCL += pdTraceMotion[nNumTemp].dVCL;
+			//	dataOut->dAveVAP += pdTraceMotion[nNumTemp].dVAP;
+			//	dataOut->dLIN    += pdTraceMotion[nNumTemp].dLIN;
+			//	dataOut->dSTR    += pdTraceMotion[nNumTemp].dSTR;
+			//	dataOut->dWOB    += pdTraceMotion[nNumTemp].dWOB;
+			//	dataOut->dALH    += pdTraceMotion[nNumTemp].dALH;
+			//	dataOut->dBCF    += pdTraceMotion[nNumTemp].dBCF;
+			//	dataOut->dMAD    += pdTraceMotion[nNumTemp].dMAD;
+
+			//	// 直线或曲线分类
 			//	if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
 			//	{
 			//		dataOut->nNumSL++;
@@ -8803,72 +8743,200 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			//		pnTraceType[i] = 1;//曲线1
 			//	}
 
-			//	//速度分布图
-			//	//直线
+			//	// 速度分布图
 			//	int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
-			//	if (nIndexSL <= 9)
-			//	{
-			//		dataOut->dHistVSL[nIndexSL]++;
-			//	}
+			//	if (nIndexSL <= 9) dataOut->dHistVSL[nIndexSL]++;
 			//	
-			//	//曲线
 			//	int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
-			//	if (nIndexCL <= 9)
-			//	{
-			//		dataOut->dHistVCL[nIndexCL]++;
-			//	}
+			//	if (nIndexCL <= 9) dataOut->dHistVCL[nIndexCL]++;
 			//	
-			//	//路径
 			//	int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
-			//	if (nIndexAP <= 9)
-			//	{
-			//		dataOut->dHistVAP[nIndexAP]++;
-			//	}				
+			//	if (nIndexAP <= 9) dataOut->dHistVAP[nIndexAP]++;
 
-			//	//分级A/B/C/D
-			//	if(pdTraceMotion[nNumTemp].dVAP >= 25)
+			//	// 分级A/B/C
+			//	if(pdTraceMotion[nNumTemp].dVAP >= 25.0)
 			//	{
 			//		nNumClassA++;
 			//	} 
-			//	// V1.0.3-H 版本 提高 B 级门限：防止液体微弱整体平移被误判为 B 级慢速前向精子。
-			//	// else if(pdTraceMotion[nNumTemp].dVAP >= 5 && pdTraceMotion[nNumTemp].dSTR >= 0.6)
-			//	else if(pdTraceMotion[nNumTemp].dVAP >= 8.0 && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+			//	else if(pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= 0.6)
 			//	{
 			//		nNumClassB++;
-			//		// V1.0.3-H 版本 堵死 Class C 兜底漏洞：只有才能算 C 级，低于 5.0 的不进 A/B/C，自动流向 D 级（死精）。
-			//		// }else
-			//	}else if (pdTraceMotion[nNumTemp].dVAP >= 5.0)
+			//	}
+			//	else
 			//	{
 			//		nNumClassC++;
 			//	}
-			//}		
+			//}
+			//else
+			//{
+			//	pnTraceType[i] = 0; // 不动/微动，不绘制运动轨迹
+			//}
 
-			// V1.0.3-H 版本 【方案1修改】：使用新阈值过滤，大幅提高对像素抖动和微小位移的抗噪能力
-			if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN)
+			//// V1.0.3-H 版本 调整累加位置，注释掉下行
+			////dataOut->dAveVSL = dataOut->dAveVSL + pdTraceMotion[nNumTemp].dVSL;
+			////dataOut->dAveVCL = dataOut->dAveVCL + pdTraceMotion[nNumTemp].dVCL;
+			////dataOut->dAveVAP = dataOut->dAveVAP + pdTraceMotion[nNumTemp].dVAP;
+			////dataOut->dLIN = dataOut->dLIN + pdTraceMotion[nNumTemp].dLIN;
+			////dataOut->dSTR = dataOut->dSTR + pdTraceMotion[nNumTemp].dSTR;
+			////dataOut->dWOB = dataOut->dWOB + pdTraceMotion[nNumTemp].dWOB;
+
+			////dataOut->dALH = dataOut->dALH + pdTraceMotion[nNumTemp].dALH;
+			////dataOut->dBCF = dataOut->dBCF + pdTraceMotion[nNumTemp].dBCF;
+			//// 加固：单条轨迹 MAD 若为 NaN，不累加，避免污染总均值/同步动物宽窗版本改进MAD
+			//if (!_isnan(pdTraceMotion[nNumTemp].dMAD))
+			//{
+			//	dataOut->dMAD = dataOut->dMAD + pdTraceMotion[nNumTemp].dMAD;
+			//}
+
+			//// V1.0.3-H 版本 大幅提高判活速度门限：将 2.5 改为 10，彻底过滤掉像素抖动产生的虚假位移。
+			//// if (pdTraceMotion[nNumTemp].dVCL > 2.5)
+			////if (pdTraceMotion[nNumTemp].dVCL > 10)
+			////{
+			////	//直线或曲线分类
+			////	if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
+			////	{
+			////		dataOut->nNumSL++;
+			////		pnTraceType[i] = 2;//直线2
+			////	} 
+			////	else
+			////	{
+			////		dataOut->nNumCL++;
+			////		pnTraceType[i] = 1;//曲线1
+			////	}
+
+			////	//速度分布图
+			////	//直线
+			////	int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
+			////	if (nIndexSL <= 9)
+			////	{
+			////		dataOut->dHistVSL[nIndexSL]++;
+			////	}
+			////	
+			////	//曲线
+			////	int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
+			////	if (nIndexCL <= 9)
+			////	{
+			////		dataOut->dHistVCL[nIndexCL]++;
+			////	}
+			////	
+			////	//路径
+			////	int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
+			////	if (nIndexAP <= 9)
+			////	{
+			////		dataOut->dHistVAP[nIndexAP]++;
+			////	}				
+
+			////	//分级A/B/C/D
+			////	if(pdTraceMotion[nNumTemp].dVAP >= 25)
+			////	{
+			////		nNumClassA++;
+			////	} 
+			////	// V1.0.3-H 版本 提高 B 级门限：防止液体微弱整体平移被误判为 B 级慢速前向精子。
+			////	// else if(pdTraceMotion[nNumTemp].dVAP >= 5 && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+			////	else if(pdTraceMotion[nNumTemp].dVAP >= 8.0 && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+			////	{
+			////		nNumClassB++;
+			////		// V1.0.3-H 版本 堵死 Class C 兜底漏洞：只有才能算 C 级，低于 5.0 的不进 A/B/C，自动流向 D 级（死精）。
+			////		// }else
+			////	}else if (pdTraceMotion[nNumTemp].dVAP >= 5.0)
+			////	{
+			////		nNumClassC++;
+			////	}
+			////}		
+
+			//// V1.0.3-H 版本 【方案1修改】：使用新阈值过滤，大幅提高对像素抖动和微小位移的抗噪能力
+			//if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN)
+			//{
+			//	// 直线或曲线分类
+			//	if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
+			//	{
+			//		dataOut->nNumSL++;
+			//		pnTraceType[i] = 2; // 直线2
+			//	} 
+			//	else
+			//	{
+			//		dataOut->nNumCL++;
+			//		pnTraceType[i] = 1; // 曲线1
+			//	}
+
+			//	// 速度分布直方图统计
+			//	int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
+			//	if (nIndexSL <= 9) dataOut->dHistVSL[nIndexSL]++;
+			//	
+			//	int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
+			//	if (nIndexCL <= 9) dataOut->dHistVCL[nIndexCL]++;
+			//	
+			//	int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
+			//	if (nIndexAP <= 9) dataOut->dHistVAP[nIndexAP]++;
+
+			//	// 分级 A / B / C（低于阈值的不会进入这里，自动留给 D 级）
+			//	if (pdTraceMotion[nNumTemp].dVAP >= 25.0)
+			//	{
+			//		nNumClassA++;
+			//	} 
+			//	else if (pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+			//	{
+			//		nNumClassB++;
+			//	}
+			//	else
+			//	{
+			//		nNumClassC++; // 只有在 VAP >= SPERM_VAP_C_MIN 时才会进入 C 级
+			//	}
+			//}
+			//else
+			//{
+			//	// 低于运动阈值，明确标记为不动精子（不绘制运动轨迹线）
+			//	pnTraceType[i] = 0; 
+			//}
+
+           // V1.0.3-H 版本  
+          // 去掉了第二段重复代码，避免计数翻倍（包括两段重复的 if 判断和多余的注释）
+          // 只有通过运动速度阈值以及实际位移阈值，确认为真正运动的精子时，才计入
+			if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
+			    pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
+			    pdTraceMotion[nNumTemp].dSL  >= SPERM_DSL_MIN)
 			{
+				nNumActiveTrace++; // 只统计真正的活动轨迹数量
+
+				// 只累加真正活动精子的运动学特征
+				dataOut->dAveVSL += pdTraceMotion[nNumTemp].dVSL;
+				dataOut->dAveVCL += pdTraceMotion[nNumTemp].dVCL;
+				dataOut->dAveVAP += pdTraceMotion[nNumTemp].dVAP;
+				dataOut->dLIN    += pdTraceMotion[nNumTemp].dLIN;
+				dataOut->dSTR    += pdTraceMotion[nNumTemp].dSTR;
+				dataOut->dWOB    += pdTraceMotion[nNumTemp].dWOB;
+				dataOut->dALH    += pdTraceMotion[nNumTemp].dALH;
+				dataOut->dBCF    += pdTraceMotion[nNumTemp].dBCF;
+				
+				// 仅对有效活精累加 MAD，且加固防 NaN
+				if (!_isnan(pdTraceMotion[nNumTemp].dMAD))
+				{
+					dataOut->dMAD += pdTraceMotion[nNumTemp].dMAD;
+				}
+
 				// 直线或曲线分类
 				if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
 				{
 					dataOut->nNumSL++;
-					pnTraceType[i] = 2; // 直线2
+					pnTraceType[i] = 2; // 直线 2
 				} 
 				else
 				{
 					dataOut->nNumCL++;
-					pnTraceType[i] = 1; // 曲线1
+					pnTraceType[i] = 1; // 曲线 1
 				}
 
 				// 速度分布直方图统计
-				int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
+				int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL / 10.0 + 0.5);
 				if (nIndexSL <= 9) dataOut->dHistVSL[nIndexSL]++;
 				
-				int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
+				int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL / 10.0 + 0.5);
 				if (nIndexCL <= 9) dataOut->dHistVCL[nIndexCL]++;
 				
-				int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
+				int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP / 10.0 + 0.5);
 				if (nIndexAP <= 9) dataOut->dHistVAP[nIndexAP]++;
 
-				// 分级 A / B / C（低于阈值的不会进入这里，自动留给 D 级）
+				// 运动分级 A / B / C
 				if (pdTraceMotion[nNumTemp].dVAP >= 25.0)
 				{
 					nNumClassA++;
@@ -8879,13 +8947,12 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 				}
 				else
 				{
-					nNumClassC++; // 只有在 VAP >= SPERM_VAP_C_MIN 时才会进入 C 级
+					nNumClassC++;
 				}
 			}
 			else
 			{
-				// 低于运动阈值，明确标记为不动精子（不绘制运动轨迹线）
-				pnTraceType[i] = 0; 
+				pnTraceType[i] = 0; // 不动/微动，不绘制运动轨迹
 			}
 
 			nNumTemp++;
