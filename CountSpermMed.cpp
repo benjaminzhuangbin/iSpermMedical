@@ -9015,6 +9015,12 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			dataOut->dAveVSL = 0.0;
 			dataOut->dAveVCL = 0.0;
 			dataOut->dAveVAP = 0.0;
+
+			// V1.0.3-H 版本  【关键新增】：整片全死精时，将所有轨迹标记同步清零为 0（不动），防止图像绘制虚假轨迹
+			for (int k = 0; k < nTraceIndex; k++)
+			{
+				pnTraceType[k] = 0;
+			}
 		}
 
 	//速度等级分布图
@@ -9133,38 +9139,83 @@ int drawTraceImg(const char **ppcFilePath, int const& nImgFileNum, const char **
 		IplImage *pImgContourShow = clipCenterImage(pImgSrcTemp, nCenterPara);
 		cvReleaseImage(&pImgSrcTemp);
 
-		for (int j = 0; j<nTraceIndex; j++)
+		//for (int j = 0; j<nTraceIndex; j++)
+		//{
+		//	CvScalar cvColor = DEADCOlOUR;
+		//	if (pnTraceType[j] == 2)//直线（快速），红色
+		//	{
+		//		cvColor = ALIVECOlOUR;
+		//	}
+		//	else if (pnTraceType[j] == 1)//曲线（慢速），蓝色
+		//	{
+		//		cvColor = DEADCOlOUR;
+		//	}
+		//	else if (pnTraceType[j] == 0)//微动或不动
+		//	{
+		//		cvColor = DEADCOlOUR;  // 致命错误：这里把不动精子赋成了蓝色！
+		//	}
+		//
+		//	//画线, 紧接着下面不论 0、1、2，都无差别执行了 cvLine 画线！
+		//	if (i >= 1)
+		//	{
+		//		for (int k = 0; k<i; k++)//连续的轨迹绘制
+		//		{
+		//			if (pSSpermTraceInfor[j*nImgFileNum+k].fPosX > 0.2 && pSSpermTraceInfor[j*nImgFileNum+k].fPosY > 0.2
+		//				&& pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX > 0.2 && pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY > 0.2)//尚未生成
+		//			{
+		//				CvPoint cvCenter0 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosX),cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosY));
+		//				CvPoint cvCenter1 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX),cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY));
+		//				//cvColor = CV_RGB(253,90,78);//红色
+		//				double dLengthTemp = sqrt((cvCenter1.x - cvCenter0.x)*(cvCenter1.x - cvCenter0.x) + (cvCenter1.y - cvCenter0.y)*(cvCenter1.y - cvCenter0.y));
+
+		//				if (dLengthTemp < 6*dLimitedLength)
+		//				{
+		//					cvLine(pImgContourShow, cvCenter0, cvCenter1,cvColor,2);
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
+
+		// V1.0.3-H 版本  修改：在 drawTraceImg 中，对 pnTraceType == 0 的不动精子直接跳过不画线
+		for (int j = 0; j < nTraceIndex; j++)
 		{
-			CvScalar cvColor = DEADCOlOUR;
-			if (pnTraceType[j] == 2)//直线
+			// 【关键修复】：如果是不动/微动精子 (0)，严禁绘制任何轨迹线！直接跳过！
+			if (pnTraceType[j] == 0)
+			{
+				continue;
+			}
+
+			CvScalar cvColor = DEADCOlOUR; // 默认蓝色
+			if (pnTraceType[j] == 2) // 直线运动（快速），红色
 			{
 				cvColor = ALIVECOlOUR;
 			}
-			else if (pnTraceType[j] == 1)//曲线
+			else if (pnTraceType[j] == 1) // 曲线运动（慢速），蓝色
 			{
 				cvColor = DEADCOlOUR;
 			}
-			else if (pnTraceType[j] == 0)//微动或不动
+			else
 			{
-				cvColor = DEADCOlOUR;
+				continue; // 其他异常类型跳过
 			}
-		
-			//画线
+
+			// 画线（仅对真正运动的精子 pnTraceType 为 1 或 2 绘制）
 			if (i >= 1)
 			{
-				for (int k = 0; k<i; k++)//连续的轨迹绘制
+				for (int k = 0; k < i; k++) // 连续的轨迹绘制
 				{
 					if (pSSpermTraceInfor[j*nImgFileNum+k].fPosX > 0.2 && pSSpermTraceInfor[j*nImgFileNum+k].fPosY > 0.2
-						&& pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX > 0.2 && pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY > 0.2)//尚未生成
+						&& pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX > 0.2 && pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY > 0.2) // 尚未生成
 					{
-						CvPoint cvCenter0 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosX),cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosY));
-						CvPoint cvCenter1 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX),cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY));
-						//cvColor = CV_RGB(253,90,78);//红色
+						CvPoint cvCenter0 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosX), cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosY));
+						CvPoint cvCenter1 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX), cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY));
+
 						double dLengthTemp = sqrt((cvCenter1.x - cvCenter0.x)*(cvCenter1.x - cvCenter0.x) + (cvCenter1.y - cvCenter0.y)*(cvCenter1.y - cvCenter0.y));
 
 						if (dLengthTemp < 6*dLimitedLength)
 						{
-							cvLine(pImgContourShow, cvCenter0, cvCenter1,cvColor,2);
+							cvLine(pImgContourShow, cvCenter0, cvCenter1, cvColor, 2);
 						}
 					}
 				}
