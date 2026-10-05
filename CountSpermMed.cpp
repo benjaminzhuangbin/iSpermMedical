@@ -1,9 +1,10 @@
-﻿#include "CountSpermMed.h"
+#include "CountSpermMed.h"
 
 #include<opencv/cv.h>   //cv.h OpenCV的主要功能头文件
 #include <opencv/highgui.h>//显示图像用的，因为用到了显示图片
 
 #include <math.h>//用于计算向量方向
+#include <float.h>   // _isnan 同步动物宽窗版本改进添加 针对MAD优化
 
 /*
  * 精子形态学估算参数生成 - 医学应用级随机数生成系统
@@ -441,38 +442,6 @@ using namespace cv;
 #define MAXPATHLENGTH 200//文件路径占用最长的字符数
 #define EPSINON 1e-9//系统精度，低于该值，认为为0
 
-// =============================================================================
-// 【放宽“非精子/-9”判定】一键可调参数（放宽=扩大接受区间；收紧=缩小接受区间）
-//
-// 重要（见 COUNTSPERMMED.H）：
-//   dataIn->dShapeRatio 是【模式开关】，不是图像测得的几何量：
-//     0.5  → 标粒模式（产品语义上期望走非精子/-9）
-//     ≥1   → 猪精模式
-//     代码注释另有 >0.9 视为人精模式
-//   因此 NONSPERM_INPUT_SHAPE_MIN 建议保持 0.8：输入 0.5 时仍会 <0.8 → -9（符合标粒模式）。
-//   若把该宏降到 0.5，则输入 0.5 时 0.5<0.5 为假，会破坏“标粒模式→-9”的约定。
-//
-// 要让真精子少报 -9：调用方应传 dShapeRatio≥1（猪）或>0.9（人），
-// 并放宽下面 FRESH_SPERM_* / FRESH_TMPL_*（图像分类窗与检出模板）。
-// morpPara 只影响输出 dMorp%（形态正常比例），不参与 nStatus=-9。
-// =============================================================================
-#define NONSPERM_INPUT_SHAPE_MIN   0.80  // 模式分界：输入 dShapeRatio < 此值 → 按非精子（标粒）模式；保持0.8以兼容头文件“0.5=标粒”
-#define FRESH_SPERM_AREA_MIN       8.0   // 原11； ↓放宽（接受更小平均面积，pixel^2）
-#define FRESH_SPERM_AREA_MAX      50.0   // 原35； ↑放宽（接受更大平均面积，pixel^2）
-#define FRESH_SPERM_SHAPE_MIN      1.05  // 原1.15；↓放宽（接受更圆：图像统计长/短轴）
-#define FRESH_SPERM_SHAPE_MAX      2.10  // 原1.8； ↑放宽（接受更细长；猪精常需≥2）
-// 新鲜人精检出模板（updateSpermRange paraRangeTemp2），与上窗配套放宽
-#define FRESH_TMPL_AREA_MIN        7.0   // 原11
-#define FRESH_TMPL_AREA_MAX       40.0   // 原22
-#define FRESH_TMPL_AREA_AVE       18.0   // 原16.8
-#define FRESH_TMPL_MAJ_MIN         2.8   // 原3.2
-#define FRESH_TMPL_MAJ_MAX        10.0   // 原7
-#define FRESH_TMPL_MAJ_AVE         5.5   // 原5.08
-#define FRESH_TMPL_MIN_MIN         1.8   // 原2
-#define FRESH_TMPL_MIN_MAX         6.0   // 原4.8
-#define FRESH_TMPL_MIN_AVE         4.0   // 原3.95
-#define FRESH_TMPL_SHAPE           1.15  // 原1.23；略降以兼容更圆目标
-
 #define COULOURCHOOSE 1
 #if (COULOURCHOOSE)
 #define ALIVECOlOUR (CV_RGB(255,0,0))//(CV_RGB(253,90,78))//红色，活动目标
@@ -521,13 +490,13 @@ struct SSettings
 	double dVolume;	// 每剂容量
 	double dFrameRate;//相机采样频率
 
-	double dShapeRatio;//目标长宽比/模式开关：0.5标粒，>0.9人精(注释)，≥1猪精(头文件)
+	double dShapeRatio;//目标形状长宽比
 	double dPlateType;//玻片类型，1表示蓝色六腔版，0表示白色四腔版
 
 	//校正系数：
 	double dDSDensk;//精液浓度校正系数k，范围限定：0.1-10
 
-	struct sMorpPara morpPara;	// 形态学参数（仅用于 dMorp% 正常形态判定，不参与 nStatus=-9）
+	struct sMorpPara morpPara;	// 形态学参数
 };
 
 //单个精子信息
@@ -580,7 +549,7 @@ struct ParaRange
 };
 
 //精子目标的面积限定
-const double dMinArea = 8;//最小面积,pixel
+const double dMinArea = 6;//最小面积,pixel  同步动物宽窗版本，8改为6，动物版为5，注意数字太小：噪声小点也可能进来，极端时可能轻微拉偏 AreaAve/ShapeAve
 const double dMaxArea = 200;//最大面积,pixel
 
 double dAlphaDens = 0;
@@ -886,8 +855,8 @@ SpermEstimateParamsM calcSpermMorphologyEstimate(double dTotaSpermDensity);  // 
 void getAlgInforMed(algInforMed *algInforOut)
 {
 	//算法版本信息
-	char cAlgVersionTemp[20] = "V1.0.1-H";
-	char cAlgReleaseDateTemp[20] = "2025.10.26";
+	char cAlgVersionTemp[20] = "V1.0.3-H";
+	char cAlgReleaseDateTemp[20] = "2026.10.05";
 	strcpy(algInforOut->cAlgVersion,cAlgVersionTemp);
 	strcpy(algInforOut->cAlgReleaseDate,cAlgReleaseDateTemp);
 }
@@ -1016,37 +985,38 @@ int init(algsqamed_data_out *dataOut, const algsqamed_data_in *dataIn, SSettings
 	
 	// [形态学估算值程序]在函数声明后，定义函数结构体，一次生成所有形态学估算参数
 SpermEstimateParamsM calcSpermMorphologyEstimate(double dTotaSpermDensity) {
-    SpermEstimateParamsM params = {0}; // 初始化所有成员为0
+    SpermEstimateParamsM params = {0}; // 初始化所有成员为0.0
 
     // 异常值校验
-    if (dTotaSpermDensity < -EPSINON) {
-        params.dNormal = 0.0; // 用dNormal=0.0标识异常
+    if (dTotaSpermDensity <= EPSINON) {
+       // V1.0.3-H版本 此时 params 内部所有字段（dNormal, dAbnormal, dHdefects, dMdefects, dTdefects, dCRdefects, dTZI, dSDI, dRoundcells）均严格为 0.0
         return params;
     }
 
-    // 1. 生成dNormal和dTZI（按浓度区间）
+    // 1. 生成dNormal和dTZI（按浓度区间, 此时浓度必然 > 0）
     if (dTotaSpermDensity >= 15 - EPSINON) {
 		/* 区间1：浓度 ≥ 15 */
         params.dNormal = genTimeConstrainedRandom(RANGE1_MIN, RANGE1_MAX);
         params.dTZI = genTimeConstrainedRandom(RANGE7_MIN, RANGE7_MAX);
-    } else if (dTotaSpermDensity > 5 + EPSINON && dTotaSpermDensity < 15 - EPSINON) {
-		/* 区间2：浓度 5-15 */
+    // } else if (dTotaSpermDensity > 5 + EPSINON && dTotaSpermDensity < 15 - EPSINON) {
+		} else if (dTotaSpermDensity > 5 - EPSINON) {
+		/* 区间2：浓度 [5-15 )    V1.0.3-H版本 注：原代码 > 5+EPSINON 容易造成 5.0 刚好落空，已优化闭合边界 */
         params.dNormal = genTimeConstrainedRandom(RANGE2_MIN, RANGE2_MAX);
         params.dTZI = genTimeConstrainedRandom(RANGE8_MIN, RANGE8_MAX);
     } else {
-		/* 区间3：浓度 ≤ 5 */
+		/* 区间3：浓度 (0, 5) */
         params.dNormal = genTimeConstrainedRandom(RANGE3_MIN, RANGE3_MAX);
         params.dTZI = genTimeConstrainedRandom(RANGE9_MIN, RANGE9_MAX);
     }
 
 
     // 2. 计算dAbnormal和dSDI
-	params.dAbnormal = 100 - params.dNormal; 
-    if (params.dAbnormal < 80) params.dAbnormal = 79.99; // dAbnormal 最小值
+	params.dAbnormal = 100.0 - params.dNormal; 
+    if (params.dAbnormal < 80.0) params.dAbnormal = 79.99; // dAbnormal 最小值
     if (params.dAbnormal > 98.99) params.dAbnormal = 98.99; // dAbnormal 最大值
 
       // SDI 计算
-    params.dSDI = params.dTZI * params.dAbnormal/100;
+    params.dSDI = params.dTZI * params.dAbnormal/100.0;
 
     // 3. 生成与计算（头部/中部/尾部异常）
     double hCoeff = genTimeConstrainedRandom(RANGE4_MIN, RANGE4_MAX); 
@@ -1915,9 +1885,8 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 
 		dAlphaDens = dAlpha/dRatio;
 
-		//静止目标结果计算
-		// nStatus=-9：输入形状 < NONSPERM_INPUT_SHAPE_MIN，或 nSampleType==3/4（见文件头放宽宏）
-		if (nStatus != 1 || SParaInput.dShapeRatio < NONSPERM_INPUT_SHAPE_MIN || nSampleType == 3 || nSampleType == 4 || (nTotalSpermNum >100/(dAlphaDens+EPSINON)))
+		//静止目标结果计算（要不要进“过浓/异常”处理）
+		if (nStatus != 1 || SParaInput.dShapeRatio < 0.8 || nSampleType == 3 || nSampleType == 4 || (nTotalSpermNum >120/(dAlphaDens+EPSINON))) //密度上限100改为120
 		{
 			int nStatusTemp = 1;
 			//nTypeDead = 1;
@@ -1932,12 +1901,11 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 			dataOut->dTotaSpermDensity = dAlphaDens*nTotalSpermNum;//总密度
 
 
-			// 全文件唯一 nStatus=-9 赋值点；条件与上方静止分支入口一致（OR）
-			if (SParaInput.dShapeRatio < NONSPERM_INPUT_SHAPE_MIN || nSampleType == 3 || nSampleType == 4)
+			if (SParaInput.dShapeRatio < 0.8 || nSampleType == 3 || nSampleType == 4)
 			{
 				nStatus = -9;//样本可能为非精子目标
 			}	
-			if (nTotalSpermNum >100/(dAlphaDens+EPSINON))
+			if (nTotalSpermNum >120/(dAlphaDens+EPSINON))  //密度上限 = 120（百万个/毫升）同步动物宽窗版本，更新100变成120，同步需要改动上面20行前的那行代码(nTotalSpermNum >120/(dAlphaDens+EPSINON)))
 			{
 				nStatus = -16;//样本浓度过高，请稀释后重新检测
 			}
@@ -2066,32 +2034,31 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		 }
 
 		 // || nSpermIndex > 30,注：这个判断受样本具体情况影响，结果会有异常判断，暂时先不用
-		 // 分类：type2=新鲜人精→可 nStatus=1；type3/4→-9；type1→-12
-		 // 面积/形态窗由文件头 FRESH_SPERM_* 宏控制（放宽这些宏即可让更多样本判为正常精子）
-		 if ((pSSpermRange.dAreaAve > 35 && pSSpermRange.dShapeRatio > 2)||(pSSpermRange.dAreaAve > 40 && pSSpermRange.dShapeRatio > 2.8)||(pSSpermRange.dAreaAve > 60 && pSSpermRange.dShapeRatio > 2.5)||pSSpermRange.dAreaAve > 75)
-		 {
-			 nSampleType = 1;//干涸人精
+		// 同步动物宽窗，明显干涸才 -12：面积明显偏大且偏扁长，或极大面积
+		if ( (pSSpermRange.dAreaAve > 50 && pSSpermRange.dShapeRatio > 2.3)
+			 || (pSSpermRange.dAreaAve > 60) )
+		{
+			 nSampleType = 1;//干涸人精 →  nStatus = -12
 		 }
-		 // else if (...)//猪-一体机旧窗已注释
-		 else if ((pSSpermRange.dAreaAve <= FRESH_SPERM_AREA_MAX && pSSpermRange.dAreaAve > FRESH_SPERM_AREA_MIN)
-			 && (pSSpermRange.dShapeRatio >= FRESH_SPERM_SHAPE_MIN && pSSpermRange.dShapeRatio < FRESH_SPERM_SHAPE_MAX))
+		// 人用版本，同步动物宽窗，稍微放宽一点nSampleType = 2的条件，让更多类型的样本（比如“刚死/微干”）进入nSampleType = 2
+		 else if ((pSSpermRange.dAreaAve <= 60 && pSSpermRange.dAreaAve > 6) &&  (pSSpermRange.dShapeRatio >= 1.15 &&  pSSpermRange.dShapeRatio < 2.3)) 
 		 {
-			 nSampleType = 2;//新鲜人精（放宽后：更小/更大/更圆/更长均可落入此窗）
+			 nSampleType = 2;//新鲜人精
 		 }
-		 else if (pSSpermRange.dShapeRatio < FRESH_SPERM_SHAPE_MIN)
+		 else if (pSSpermRange.dShapeRatio < 1.15)
 		 {
 			 if (pSSpermRange.dAreaAve > 50)
 			 {
-				 nSampleType = 4;//红细胞（极圆且面积大）
+				 nSampleType = 4;//红细胞
 			 } 
 			 else
 			 {
-				 nSampleType = 3;//标粒（极圆且面积不大）
+				 nSampleType = 3;//标粒
 			 }			 
 		 }
 		 else
 		 {
-			 nSampleType = 3;//其他（形态尚可但面积仍出窗 → 仍会 -9；继续放宽 AREA_MIN/MAX）
+			 nSampleType = 3;//其他
 		 }
 		 //test
 		 //nSampleType = 2;//新鲜人精
@@ -5143,43 +5110,42 @@ void calMaxAveNum(double *pdData, int nNum, double *dAve, int *nMaxNum)
 	}
 }
 
-//转向角度的计算
+//转向角度的计算  [同步动物宽窗版本中更新了下面代码，避免MAD 计算结果出现非法浮点值（NaN）也就是0÷0
 //MAD：角度的变化值的绝对值的均值（基于dPointXY）
 double calMAD(double *dPointXY, int nPosNum)
 {
-	if (nPosNum < 2 )
+	// 至少 3 个点才能形成两段位移、算一个转角
+	if (nPosNum < 3 || dPointXY == NULL)
 	{
 		return 0.0;
 	}
 
 	double dMADave = 0.0;
+	int nCount = 0;
 
-	double dx,dx1,dx2,dy,dy1,dy2;
-	double rad,deg;
-
-	//角度变化值计算
-	for (int j = 2; j<nPosNum; j++)
+	// 用相邻两段向量：点(j-1)->j 与 j->(j+1)
+	for (int j = 1; j < nPosNum - 1; j++)
 	{
-		// 第1个点和第2个点的向量
-		dx1 = dPointXY[2*j] - dPointXY[2*(j-1)];  // X轴差值
-		dy1 = dPointXY[2*j+1]- dPointXY[2*(j-1)+1];  // Y轴差值
+		double dx1 = dPointXY[2*j]     - dPointXY[2*(j-1)];
+		double dy1 = dPointXY[2*j+1]   - dPointXY[2*(j-1)+1];
+		double dx2 = dPointXY[2*(j+1)] - dPointXY[2*j];
+		double dy2 = dPointXY[2*(j+1)+1]- dPointXY[2*j+1];
 
-		// 第2个点和第3个点的向量
-		dx2 = dPointXY[2*(j+1)] - dPointXY[2*j];  // X轴差值
-		dy2 = dPointXY[2*(j+1)+1]- dPointXY[2*j+1];  // Y轴差值
+		// 更合理：两向量夹角（也可用 atan2 差）
+		double cross = dx1*dy2 - dy1*dx2;
+		double dot   = dx1*dx2 + dy1*dy2;
+		double rad   = atan2(cross, dot);   // [-π, π]
+		double deg   = fabs(rad * 180.0 / 3.141592653589793);
 
-		// 两个向量求夹角
-		dx = dx2-dx1;
-		dy = dy2-dy1;
-		rad = atan2(dy, dx);			// 返回弧度值（范围：-π ~ π），
-		deg = abs(rad * 180.0 / 3.1416);	// 转换为角度（-180 ~ 180），取绝对值
-
-		dMADave = dMADave + deg;
+		dMADave += deg;
+		nCount++;
 	}
 
-	dMADave = dMADave/(nPosNum-2);
-
-	return dMADave;
+	if (nCount <= 0)
+	{
+		return 0.0;
+	}
+	return dMADave / nCount;
 }
 
 //获取目标轮廓及其几何信息（临时获取信息分布用）
@@ -7603,14 +7569,23 @@ void updateSpermRange(ParaRange *pSAveSpermRange, const int nSampleType)
 {
 	//{11.6, 63.9, 31.5, 5.2, 15.3, 9.1, 3, 7.2, 4.7, dVar[4]};
 	//注：以下参数基于三种类别各8份样本统计得到，date:2018.01.05
+	/*
+	struct ParaRange
+    double dAreaMin;               // ① 面积最小
+    double dAreaMax;              // ② 面积最大
+    double dAreaAve;               // ③ 面积平均
+    double dMajorLengthMin;  // ④ 长轴最小
+    double dMajorLengthMax;  // ⑤ 长轴最大
+    double dMajorLengthAve;   // ⑥ 长轴平均
+    double dMinorLengthMin;  // ⑦ 短轴最小
+    double dMinorLengthMax;  // ⑧ 短轴最大
+    double dMinorLengthAve;  // ⑨ 短轴平均
+    double dShapeRatio;          // ⑩ 长/短轴比（模板参考值）
+	*/
+	// {AreaMin,Max,Ave, MajorLengthMin,Max,Ave, MinorLengthMin,Max,Ave, ShapeRatio}
 	ParaRange paraRangeTemp;
 	ParaRange paraRangeTemp1 = {40, 110, 75, 9, 34, 21, 3.4, 9, 6.5, 3.3};//干涸人精
-	// 新鲜人精尺寸模板（数值来自文件头 FRESH_TMPL_*）；ABCD检出窗约 [0.7*AreaMin, 2*AreaMax]
-	ParaRange paraRangeTemp2 = {
-		FRESH_TMPL_AREA_MIN, FRESH_TMPL_AREA_MAX, FRESH_TMPL_AREA_AVE,
-		FRESH_TMPL_MAJ_MIN, FRESH_TMPL_MAJ_MAX, FRESH_TMPL_MAJ_AVE,
-		FRESH_TMPL_MIN_MIN, FRESH_TMPL_MIN_MAX, FRESH_TMPL_MIN_AVE,
-		FRESH_TMPL_SHAPE};//新鲜人精（已放宽，配合 FRESH_SPERM_* 分类窗）
+	ParaRange paraRangeTemp2 = {10, 30, 18.0, 3.0, 9, 5.5, 2.0, 5.5, 3.8, 1.20};//新鲜人精  同步动物宽窗版本，略扩大区间，处理 type2 过了但仍漏检的（“刚死/微干”）的大尺寸精子
 	//ParaRange paraRangeTemp3 = {5, 30, 15, 2.5, 9.3, 4.4, 2.8, 4.8, 3.8, 1.15};//标粒，测试结果
 	ParaRange paraRangeTemp3 = {5, 150, 15, 2.5, 9.3, 4.4, 2.8, 4.8, 3.8, 1.15};//标粒，测试结果
 	ParaRange paraRangeTemp4 = {30, 150, 62, 6, 11.7, 9.7, 2.8, 9.6, 7.8, 1.16};//红细胞，测试结果
@@ -7808,6 +7783,15 @@ int getSpermTrace(const char **ppcFilePath, const char **ppcResImgFile, const ch
 
 		return nStatus;//内存异常
 	}
+
+	// V1.0.3-H 版本
+	// ==================== 精子运动灵敏度可调阈值 ====================
+	#define SPERM_VCL_MIN           10.0   // [可调] 曲线速度最小阈值(um/s)，低于此值直接判为D级不动(原代码是2.5太灵敏)
+	#define SPERM_VAP_C_MIN         5.0    // [可调] C级非前向运动的VAP最小门限(um/s)，低于此值不计入C级
+	#define SPERM_VAP_B_MIN         8.0    // [可调] B级慢速前向运动的VAP门限(um/s)，原代码是5.0
+	#define SPERM_SAMPLE_NOISE_GATE 2.0    // [可调] 样本级噪声门限(%)：全片活动率若低于此百分比，全判定为0活力
+	// ==============================================================
+
 
 	//精子轨迹的绘制
 	double dDeltaT = 1/(SParaInput.dFrameRate+EPSINON);//采样间隔
@@ -8490,6 +8474,20 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 		dataOut->dHistVAP[i] = 0;
 	}
 
+	//V1.0.3-H 版本 === 【新增】：初始化运动学累加参数为 0 ===
+	dataOut->dAveVSL = 0.0;
+	dataOut->dAveVCL = 0.0;
+	dataOut->dAveVAP = 0.0;
+	dataOut->dLIN    = 0.0;
+	dataOut->dSTR    = 0.0;
+	dataOut->dWOB    = 0.0;
+	dataOut->dALH    = 0.0;
+	dataOut->dBCF    = 0;
+	dataOut->dMAD    = 0.0;
+	dataOut->dDCL    = 0.0;
+	dataOut->dDSL    = 0.0;
+	dataOut->dDAP    = 0.0;
+
 	double dRatio = SParaInput.dRatioImg;//图像放大率
 	double dDeltaT = 1/(SParaInput.dFrameRate+EPSINON);//采样间隔
 
@@ -8534,7 +8532,9 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 		//nEndPoint = nStartPoint + nPosNum -1;
 
 		//分类
-		if (nPosNum <= 10 || nPosNum <= nImgFileNum/3)
+		// V1.0.3-H 版本 调大有效轨迹帧数：要求连续检测从10帧提升到 15 帧以上才算有效精子，直接剔除掉瞬间闪烁的杂质噪点。
+		// if (nPosNum <= 10 || nPosNum <= nImgFileNum/3)
+        if (nPosNum <= 15 || nPosNum <= nImgFileNum/2)
 		{
 			pnTraceType[i] = 0;//微动或不动
 		}
@@ -8657,8 +8657,8 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 
 				continue;
 			}
-			
-			nNumActiveTrace ++; // 纳入统计的轨迹数量
+			// V1.0.3-H 版本 调整累加位置，注释掉下行
+			// nNumActiveTrace ++; // 纳入统计的轨迹数量
 
 			// 新增计算20251207：ALH/MAD/BCF
 			//ALH: 侧摆最大值的均值（基于dPointXY与dPointFitXY的距离）
@@ -8681,7 +8681,7 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 
 			pdTraceMotion[nNumTemp].dALH = dMaxAve*dRatio;
 			pdTraceMotion[nNumTemp].dBCF = nMaxNum + 1;
-			pdTraceMotion[nNumTemp].dMAD = dMad;
+			pdTraceMotion[nNumTemp].dMAD = _isnan(dMad) ? 0.0 : dMad; //同步动物宽窗版本改进MAD
 
 			// 新增计算20251207：ALH/MAD/BCF
 
@@ -8694,22 +8694,27 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			pdTraceMotion[nNumTemp].dSTR = pdTraceMotion[nNumTemp].dVSL/(pdTraceMotion[nNumTemp].dVAP+ EPSINON);
 			pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumTemp].dVCL+ EPSINON);
 
+			// ==============================================================================
+			// 注意：原来在这里的 nNumActiveTrace++ 和 dataOut->dLIN 累加已经【删除并移入下方】
+			// ==============================================================================
 
-			dataOut->dAveVSL = dataOut->dAveVSL + pdTraceMotion[nNumTemp].dVSL;
-			dataOut->dAveVCL = dataOut->dAveVCL + pdTraceMotion[nNumTemp].dVCL;
-			dataOut->dAveVAP = dataOut->dAveVAP + pdTraceMotion[nNumTemp].dVAP;
-			dataOut->dLIN = dataOut->dLIN + pdTraceMotion[nNumTemp].dLIN;
-			dataOut->dSTR = dataOut->dSTR + pdTraceMotion[nNumTemp].dSTR;
-			dataOut->dWOB = dataOut->dWOB + pdTraceMotion[nNumTemp].dWOB;
-
-			dataOut->dALH = dataOut->dALH + pdTraceMotion[nNumTemp].dALH;
-			dataOut->dBCF = dataOut->dBCF + pdTraceMotion[nNumTemp].dBCF;
-			dataOut->dMAD = dataOut->dMAD + pdTraceMotion[nNumTemp].dMAD;
-
-
-			if (pdTraceMotion[nNumTemp].dVCL > 2.5)
+			// 只有通过运动速度阈值校验，确认为运动精子（A/B/C级）时，才计入运动轨迹并累加特征
+			if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN)
 			{
-				//直线或曲线分类
+				nNumActiveTrace ++; // 【正确位置】：只统计真正的活动轨迹数量
+
+				// 【正确位置】：只累加真正活动精子的运动学特征
+				dataOut->dAveVSL += pdTraceMotion[nNumTemp].dVSL;
+				dataOut->dAveVCL += pdTraceMotion[nNumTemp].dVCL;
+				dataOut->dAveVAP += pdTraceMotion[nNumTemp].dVAP;
+				dataOut->dLIN    += pdTraceMotion[nNumTemp].dLIN;
+				dataOut->dSTR    += pdTraceMotion[nNumTemp].dSTR;
+				dataOut->dWOB    += pdTraceMotion[nNumTemp].dWOB;
+				dataOut->dALH    += pdTraceMotion[nNumTemp].dALH;
+				dataOut->dBCF    += pdTraceMotion[nNumTemp].dBCF;
+				dataOut->dMAD    += pdTraceMotion[nNumTemp].dMAD;
+
+				// 直线或曲线分类
 				if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
 				{
 					dataOut->nNumSL++;
@@ -8721,41 +8726,151 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 					pnTraceType[i] = 1;//曲线1
 				}
 
-				//速度分布图
-				//直线
+				// 速度分布图
 				int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
-				if (nIndexSL <= 9)
-				{
-					dataOut->dHistVSL[nIndexSL]++;
-				}
+				if (nIndexSL <= 9) dataOut->dHistVSL[nIndexSL]++;
 				
-				//曲线
 				int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
-				if (nIndexCL <= 9)
-				{
-					dataOut->dHistVCL[nIndexCL]++;
-				}
+				if (nIndexCL <= 9) dataOut->dHistVCL[nIndexCL]++;
 				
-				//路径
 				int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
-				if (nIndexAP <= 9)
-				{
-					dataOut->dHistVAP[nIndexAP]++;
-				}				
+				if (nIndexAP <= 9) dataOut->dHistVAP[nIndexAP]++;
 
-				//分级A/B/C/D
-				if(pdTraceMotion[nNumTemp].dVAP >= 25)
+				// 分级A/B/C
+				if(pdTraceMotion[nNumTemp].dVAP >= 25.0)
 				{
 					nNumClassA++;
 				} 
-				else if(pdTraceMotion[nNumTemp].dVAP >= 5 && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+				else if(pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= 0.6)
 				{
 					nNumClassB++;
-				}else
+				}
+				else
 				{
 					nNumClassC++;
 				}
-			}		
+			}
+			else
+			{
+				pnTraceType[i] = 0; // 不动/微动，不绘制运动轨迹
+			}
+
+			// V1.0.3-H 版本 调整累加位置，注释掉下行
+			//dataOut->dAveVSL = dataOut->dAveVSL + pdTraceMotion[nNumTemp].dVSL;
+			//dataOut->dAveVCL = dataOut->dAveVCL + pdTraceMotion[nNumTemp].dVCL;
+			//dataOut->dAveVAP = dataOut->dAveVAP + pdTraceMotion[nNumTemp].dVAP;
+			//dataOut->dLIN = dataOut->dLIN + pdTraceMotion[nNumTemp].dLIN;
+			//dataOut->dSTR = dataOut->dSTR + pdTraceMotion[nNumTemp].dSTR;
+			//dataOut->dWOB = dataOut->dWOB + pdTraceMotion[nNumTemp].dWOB;
+
+			//dataOut->dALH = dataOut->dALH + pdTraceMotion[nNumTemp].dALH;
+			//dataOut->dBCF = dataOut->dBCF + pdTraceMotion[nNumTemp].dBCF;
+			// 加固：单条轨迹 MAD 若为 NaN，不累加，避免污染总均值/同步动物宽窗版本改进MAD
+			if (!_isnan(pdTraceMotion[nNumTemp].dMAD))
+			{
+				dataOut->dMAD = dataOut->dMAD + pdTraceMotion[nNumTemp].dMAD;
+			}
+
+			// V1.0.3-H 版本 大幅提高判活速度门限：将 2.5 改为 10，彻底过滤掉像素抖动产生的虚假位移。
+			// if (pdTraceMotion[nNumTemp].dVCL > 2.5)
+			//if (pdTraceMotion[nNumTemp].dVCL > 10)
+			//{
+			//	//直线或曲线分类
+			//	if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
+			//	{
+			//		dataOut->nNumSL++;
+			//		pnTraceType[i] = 2;//直线2
+			//	} 
+			//	else
+			//	{
+			//		dataOut->nNumCL++;
+			//		pnTraceType[i] = 1;//曲线1
+			//	}
+
+			//	//速度分布图
+			//	//直线
+			//	int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
+			//	if (nIndexSL <= 9)
+			//	{
+			//		dataOut->dHistVSL[nIndexSL]++;
+			//	}
+			//	
+			//	//曲线
+			//	int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
+			//	if (nIndexCL <= 9)
+			//	{
+			//		dataOut->dHistVCL[nIndexCL]++;
+			//	}
+			//	
+			//	//路径
+			//	int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
+			//	if (nIndexAP <= 9)
+			//	{
+			//		dataOut->dHistVAP[nIndexAP]++;
+			//	}				
+
+			//	//分级A/B/C/D
+			//	if(pdTraceMotion[nNumTemp].dVAP >= 25)
+			//	{
+			//		nNumClassA++;
+			//	} 
+			//	// V1.0.3-H 版本 提高 B 级门限：防止液体微弱整体平移被误判为 B 级慢速前向精子。
+			//	// else if(pdTraceMotion[nNumTemp].dVAP >= 5 && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+			//	else if(pdTraceMotion[nNumTemp].dVAP >= 8.0 && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+			//	{
+			//		nNumClassB++;
+			//		// V1.0.3-H 版本 堵死 Class C 兜底漏洞：只有才能算 C 级，低于 5.0 的不进 A/B/C，自动流向 D 级（死精）。
+			//		// }else
+			//	}else if (pdTraceMotion[nNumTemp].dVAP >= 5.0)
+			//	{
+			//		nNumClassC++;
+			//	}
+			//}		
+
+			// V1.0.3-H 版本 【方案1修改】：使用新阈值过滤，大幅提高对像素抖动和微小位移的抗噪能力
+			if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN)
+			{
+				// 直线或曲线分类
+				if (pdTraceMotion[nNumTemp].dLIN >= 0.65)
+				{
+					dataOut->nNumSL++;
+					pnTraceType[i] = 2; // 直线2
+				} 
+				else
+				{
+					dataOut->nNumCL++;
+					pnTraceType[i] = 1; // 曲线1
+				}
+
+				// 速度分布直方图统计
+				int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL/10 + 0.5);
+				if (nIndexSL <= 9) dataOut->dHistVSL[nIndexSL]++;
+				
+				int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL/10 + 0.5);
+				if (nIndexCL <= 9) dataOut->dHistVCL[nIndexCL]++;
+				
+				int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP/10 + 0.5);
+				if (nIndexAP <= 9) dataOut->dHistVAP[nIndexAP]++;
+
+				// 分级 A / B / C（低于阈值的不会进入这里，自动留给 D 级）
+				if (pdTraceMotion[nNumTemp].dVAP >= 25.0)
+				{
+					nNumClassA++;
+				} 
+				else if (pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+				{
+					nNumClassB++;
+				}
+				else
+				{
+					nNumClassC++; // 只有在 VAP >= SPERM_VAP_C_MIN 时才会进入 C 级
+				}
+			}
+			else
+			{
+				// 低于运动阈值，明确标记为不动精子（不绘制运动轨迹线）
+				pnTraceType[i] = 0; 
+			}
 
 			nNumTemp++;
 
@@ -8791,6 +8906,34 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	dataOut->dRatioClassIM = dataOut->dRatioClassD;
 	dataOut->dActiveSpermRatio = dataOut->dRatioClassPR + dataOut->dRatioClassNP;
 
+	    // V1.0.3-H 版本 【方案1新增】：整片样本背景噪声滤除机制
+		// 当所有计算出的活动精子比例极低（例如低于 SPERM_SAMPLE_NOISE_GATE=2.0%），认定为纯死精样本，清零噪点
+		if (dataOut->dActiveSpermRatio < SPERM_SAMPLE_NOISE_GATE)
+		{
+			nNumClassA = 0;
+			nNumClassB = 0;
+			nNumClassC = 0;
+			nNumClassD = nNumTotalTemp;
+			nNumABCTemp = 0;
+
+			dataOut->nActiveSpermNum = 0;
+			dataOut->dRatioClassA = 0.0;
+			dataOut->dRatioClassB = 0.0;
+			dataOut->dRatioClassC = 0.0;
+			dataOut->dRatioClassD = 100.0;
+			dataOut->dRatioClassPR = 0.0;
+			dataOut->dRatioClassNP = 0.0;
+			dataOut->dRatioClassIM = 100.0;
+			dataOut->dActiveSpermRatio = 0.0;
+			dataOut->nNumSL = 0;
+			dataOut->nNumCL = 0;
+			dataOut->dRatioSL = 0.0;
+			dataOut->dRatioCL = 0.0;
+			dataOut->dAveVSL = 0.0;
+			dataOut->dAveVCL = 0.0;
+			dataOut->dAveVAP = 0.0;
+		}
+
 	//速度等级分布图
 	num2Percent(dataOut->dHistVSL, 10);
 	num2Percent(dataOut->dHistVCL, 10);
@@ -8803,6 +8946,32 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	dataOut->dHistRank[3] = dataOut->dRatioClassD;
 
 	//求各种平均值
+	// ==================== 求各种平均值（增加判零保护） ====================
+	if (nNumActiveTrace == 0 || dataOut->nActiveSpermNum == 0)
+		{
+			// 若全片无活动精子，所有运动学参数、摆动、角位移、频率严格归零
+			dataOut->dAveVSL = 0.0;
+			dataOut->dAveVCL = 0.0;
+			dataOut->dAveVAP = 0.0;
+			dataOut->dLIN    = 0.0;
+			dataOut->dSTR    = 0.0;
+			dataOut->dWOB    = 0.0;
+			dataOut->dALH    = 0.0;
+			dataOut->dBCF    = 0;
+			dataOut->dMAD    = 0.0;
+
+			dataOut->nNumSL  = 0;
+			dataOut->nNumCL  = 0;
+			dataOut->dRatioSL = 0.0;
+			dataOut->dRatioCL = 0.0;
+
+			dataOut->dDCL    = 0.0;
+			dataOut->dDSL    = 0.0;
+			dataOut->dDAP    = 0.0;
+		}
+		else
+		{
+			// 有真正的活动精子时，才计算各运动特征的均值
 	dataOut->dAveVSL = dataOut->dAveVSL/(nNumActiveTrace+EPSINON);
 	dataOut->dAveVCL = dataOut->dAveVCL/(nNumActiveTrace+EPSINON);
 	dataOut->dAveVAP = dataOut->dAveVAP/(nNumActiveTrace+EPSINON);
@@ -8813,6 +8982,11 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	dataOut->dALH = dataOut->dALH/(nNumActiveTrace+EPSINON);
 	dataOut->dBCF = (int)(dataOut->dBCF/(nNumActiveTrace+EPSINON) + 0.5);
 	dataOut->dMAD = dataOut->dMAD/(nNumActiveTrace+EPSINON);
+		// 加固：若平均后仍是 NaN/Inf，输出 0，避免界面打印 1.#QNAN 同步动物宽窗版本改进MAD
+	if (_isnan(dataOut->dMAD) || !_finite(dataOut->dMAD))
+	{
+		dataOut->dMAD = 0.0;
+	}
 
 	dataOut->nNumCL = dataOut->nActiveSpermNum - dataOut->nNumSL;
 	if (dataOut->nNumCL < 0)
@@ -8828,7 +9002,7 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	dataOut->dDSL = dataOut->dAveVSL * 0.75;
 	dataOut->dDAP = dataOut->dAveVAP * 0.75;
 
-
+	}
 
 	//资源释放
 	free(pdTraceMotion);
