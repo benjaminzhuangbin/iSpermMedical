@@ -5297,67 +5297,79 @@ void getStdParticleNum(IplImage *pImgBinary, ParaRange *pSAveSpermRange, int nSp
 	IplImage * pImgDraw =cvCreateImage(cvGetSize(pImgBinary),pImgBinary->depth,pImgBinary->nChannels);
 	cvZero(pImgDraw);
 
-	//先对输入图像做一次二值化
+//先对输入图像做一次二值化
 	cvThreshold( pImgBinary, pImgBinary,
 		100, 255, CV_THRESH_BINARY);//固定阈值分割
 
 	double dConArea, dMinAreaTemp, dMaxAreaTemp;	
 	dMinAreaTemp = 0.1 * pSAveSpermRange->dAreaMin;
-	dMaxAreaTemp = 8*pSAveSpermRange->dAreaMax;
+	dMaxAreaTemp = 8 * pSAveSpermRange->dAreaMax;
 
 	CvBox2D GeoInfor;
-
 	CvContourScanner scanner = cvStartFindContours(pImgBinary,
 		storage,
 		sizeof(CvContour),
 		CV_RETR_LIST,
 		CV_CHAIN_APPROX_SIMPLE,
 		cvPoint(0,0));
-	CvSeq * cTemp =NULL;
-	while( (cTemp = cvFindNextContour(scanner) ) != NULL)//开始查找
-	{ 
-		//面积
-		dConArea = fabs(cvContourArea(cTemp,CV_WHOLE_SEQ,0));
 
-		//轮廓面积大于dMinArea，并且小于dMaxArea，则留下，反之，则删除。 
-		if(dConArea > dMinAreaTemp && dConArea < dMaxAreaTemp && nSpermIndex < MAXSPERMNUM )
+	CvSeq * cTemp = NULL;
+	while( (cTemp = cvFindNextContour(scanner) ) != NULL) // 开始查找
+	{ 
+		// 1. 计算轮廓面积
+		dConArea = fabs(cvContourArea(cTemp, CV_WHOLE_SEQ, 0));
+
+		// 2.【定义周长 perimeter】：标准 OpenCV C-API 语法
+		double perimeter = cvArcLength(cTemp, CV_WHOLE_SEQ, 1);
+
+		// 【环节一改造过滤】：面积门限 + 绝对噪点物理下限(>=8像素) + 周长有效性检测
+		if(dConArea > dMinAreaTemp && dConArea < dMaxAreaTemp && dConArea >= 8.0 && perimeter > 0.0 && nSpermIndex < MAXSPERMNUM )
 		{  
-			//质心，长短轴，角度
-			GeoInfor = cvMinAreaRect2(cTemp, NULL);//最小外接矩形
-			double dMajLength, dMinLength, dShapeRatio;
+			// 质心，长短轴，角度
+			GeoInfor = cvMinAreaRect2(cTemp, NULL); // 最小外接矩形
+			double dMajLength, dMinLength, dShapeRatio, circularity;
 			if (GeoInfor.size.width >= GeoInfor.size.height)
 			{
-
 				dMajLength = GeoInfor.size.width;
 				dMinLength = GeoInfor.size.height;
-			}else
+			}
+			else
 			{
 				dMajLength = GeoInfor.size.height;
 				dMinLength = GeoInfor.size.width;
 			}
-			dShapeRatio = dMajLength/(dMinLength + EPSINON);
+			dShapeRatio = dMajLength / (dMinLength + EPSINON);
+
+			// 3. 圆度计算（周长不为0时安全计算）
+			circularity = (4.0 * CV_PI * dConArea) / (perimeter * perimeter + EPSINON);
+
+			// 过滤极细毛刺或微小闪烁噪点（短轴必须 >= 1.8 像素）
 			int nTemp = 1;
-			if ((nSpermType == 6 || nSpermType == 4) && dMinLength < 0.4*pSAveSpermRange->dMinorLengthAve && dConArea < 0.4*pSAveSpermRange->dAreaAve)
+			if (dMinLength < 1.8)
 			{
-				nTemp = 0;//形状判断
+				nTemp = 0; // 短轴不足 1.8 像素的极细线状噪点/闪烁光点直接剔除
+			}			
+			if ((nSpermType == 6 || nSpermType == 4) && dMinLength < 0.4 * pSAveSpermRange->dMinorLengthAve && dConArea < 0.4 * pSAveSpermRange->dAreaAve)
+			{
+				nTemp = 0; // 形状判断
 			}
 
 			if (nTemp == 1)
 			{
-				//计数
-				if (dConArea > 2*pSAveSpermRange->dAreaAve)
+				// 计数
+				if (dConArea > 2 * pSAveSpermRange->dAreaAve)
 				{
-					nTotalNum = int(nTotalNum + ceil(dConArea/pSAveSpermRange->dAreaAve));
+					nTotalNum = int(nTotalNum + ceil(dConArea / pSAveSpermRange->dAreaAve));
 				}
 				else
 				{
 					nTotalNum++;
 				}
 
-				//绘制符合条件的轮廓
-				cvDrawContours(pImgDraw,cTemp,CV_RGB(255,255,255),CV_RGB(255,255,255),0, CV_FILLED);
+				// 绘制符合条件的轮廓
+				cvDrawContours(pImgDraw, cTemp, CV_RGB(255,255,255), CV_RGB(255,255,255), 0, CV_FILLED);
 
-				//轮廓信息存储
+				// 轮廓信息存储
 				pSSpermInfor[nSpermIndex].dPosX = GeoInfor.center.x;
 				pSSpermInfor[nSpermIndex].dPosY = GeoInfor.center.y;
 				pSSpermInfor[nSpermIndex].dMajAxsLen = dMajLength;
@@ -5365,25 +5377,26 @@ void getStdParticleNum(IplImage *pImgBinary, ParaRange *pSAveSpermRange, int nSp
 				pSSpermInfor[nSpermIndex].dAngle = GeoInfor.angle;
 				pSSpermInfor[nSpermIndex].dArea = dConArea;
 				pSSpermInfor[nSpermIndex].nType = nSpermType;
-				nSpermIndex = nSpermIndex+1;
+				nSpermIndex = nSpermIndex + 1;
 			}
 			else
 			{
-				cvSubstituteContour(scanner,NULL);//删除当前的轮廓
+				cvSubstituteContour(scanner, NULL); // 删除当前的轮廓
 			}			
 		}
 		else  
 		{  
-			cvSubstituteContour(scanner,NULL);//删除当前的轮廓
+			cvSubstituteContour(scanner, NULL); // 删除当前的轮廓
 		}  
-	}
-	firstcontour = cvEndFindContours(&scanner);//把找到的轮廓返回到firstContour中。
+	} // 这里闭合 while 循环，所有大括号严格一一对应！
+
+	firstcontour = cvEndFindContours(&scanner); // 把找到的轮廓返回到firstContour中
 	cvZero(pImgBinary);
 	cvCopy(pImgDraw, pImgBinary);
 	cvReleaseImage(&pImgDraw);
-
 	nSpermIndex = nTotalNum;
-	//资源释放
+
+	// 资源释放
 	cvReleaseMemStorage(&storage); 
 }
 
@@ -7218,29 +7231,6 @@ int getSpermCountABC(char **pcValidFilePath, int nValidNum, const char * pcResul
 			nStatus = -2;//数据写入异常
 			break;
 		}
-
-
-// 		//2.存储并绘制最终结果图片
-// 		nStatus = drawFinalSpermImg(ppcImageFile[i], pImgContourShow, pImgABC, pImgBackGround, pSAveSpermRange);
-// 		if (nStatus != 1)
-// 		{
-// 			//资源释放
-// 			for (int j = 0; j < FILENUM; j++)
-// 			{
-// 				free(pcImgFileTemp[j]);
-// 				pcImgFileTemp[j] = NULL;
-// 			}
-// 			free(pcFileNameTemp);
-// 			pcFileNameTemp = NULL;
-// 			free(pcImg);
-// 			pcImg = NULL;
-// 			cvReleaseImage(&pImgABC);
-// 			cvReleaseImage(&pImgContourShow);
-// 
-// 			return nStatus;
-// 		}
-		
-
 	}
 
 
@@ -8369,7 +8359,7 @@ void traceForecast(TraceInfor *pSSpermTraceInfor, int nTraceIndexCopy, double dS
 	int nWidth = nCenterPara[0];
 	int nHeight = nCenterPara[1];
 
-	if (pSSpermTraceInfor[nTraceIndexCopy-1].nPredictNum < 5 //最多预测五次
+	if (pSSpermTraceInfor[nTraceIndexCopy-1].nPredictNum < 3 //原代码为最多预测五次  ，V1.0.3-H 版本【闪烁光点伪活力-环节二改造】，暂时修改：收紧至最多允许连续预测 3 次，一旦噪点熄灭立刻断开，切断伪轨迹的接力串联！
 		&& (dSearchCenterX > 0 && dSearchCenterX < nWidth) && (dSearchCenterY > 0 && dSearchCenterY < nHeight)) //预测点不能超出边界
 	{
 		//如果预测点太远，则更新为预测方向上距离目标3个像素的位置
@@ -8451,14 +8441,14 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	#define SPERM_VAP_C_MIN       0.0      // [新增可调] C级非前向运动的VAP门限(um/s)，把左右扭动抹平，得到一条向前的平滑轨迹，代表头部向前推进的快慢，过滤剔除微弱移动精子，低于此值不计入C级，直接判为D级不动
 	#define SPERM_VAP_B_MIN       5.0      // [可调] B级慢速前向运动的VAP门限(um/s)，原代码是5.0
 	#define SPERM_VAP_A_MIN       25.0    // [可调] A级快速前向运动的VAP门限(um/s)，原代码是25.0
-	#define SPERM_DSL_MIN           0.0      // [新增可调] 最小直线净位移(um)，原地抖动位移极小，直接视为死精，也是一种像素抖动去噪点
+	#define SPERM_DSL_MIN           1.5      // [新增可调] 最小直线净位移(um)，原地抖动位移极小，直接视为死精，也是一种像素抖动去噪点
 	#define SPERM_SAMPLE_NOISE_GATE 3.0    // [新增可调] 样本级噪声门限(%)：全片活动率若低于此百分比，全判定为0活力，清零噪点
 	// ==============================================================
 	// 实施过程中，还遵循了WHO‑6 的 CASA 实现惯例：主速度使用 VAP，同时用 STR (VSL/VAP) 必须>= 0.6，过滤非前向高速摆动精子
 
 	struct spermProperty 
 	{
-		double dSL;
+		double dDSL;
 		double dVSL;	//平均直线运动速度
 		double dVCL;	//平均曲线运动速度
 		double dVAP;	//平均路径运动速度
@@ -8480,7 +8470,7 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	}
 	for (int i = 0; i<nTraceIndex; i++)
 	{
-		pdTraceMotion[i].dSL = 0;
+		pdTraceMotion[i].dDSL = 0;
 		pdTraceMotion[i].dVSL = 0;
 		pdTraceMotion[i].dVCL = 0;
 		pdTraceMotion[i].dVAP = 0;
@@ -8534,15 +8524,12 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 		int nPosNum = 0;//轨迹的数据点数
 		int nStartPoint = 0;
 		//int nEndPoint = 0;
-
-		//求该条轨迹的数据点数
+		
+		//求该条轨迹的数据点数与真实观测点数
 		bool bStart = true;
+		int nRealPosCount = 0; // V1.0.3-H 版本【闪烁光点伪活力环节三】：真实观测到的点数（非预测虚点）
 		for (int j = 0; j<nImgFileNum; j++)
 		{
-			double dtemp1 = pSSpermTraceInfor[i*nImgFileNum+j].nPredictNum;
-			double dtemp2 = pSSpermTraceInfor[i*nImgFileNum+j].fPosX;
-			double dtemp3 = pSSpermTraceInfor[i*nImgFileNum+j].fPosY;
-
 			if (pSSpermTraceInfor[i*nImgFileNum+j].nPredictNum != -1 && 
 				pSSpermTraceInfor[i*nImgFileNum+j].fPosX > 0.2 && pSSpermTraceInfor[i*nImgFileNum+j].fPosY > 0.2)
 			{
@@ -8552,14 +8539,30 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 					bStart = false;
 				}
 				nPosNum ++;
+				if (pSSpermTraceInfor[i*nImgFileNum+j].nPredictNum == 0)
+				{
+					nRealPosCount++; // 真实检测点
+				}
 			}
 		}
+
+		// 【环节三过滤1】：如果真实观测点数太少（< 7 帧），或者预测虚点占比超过 35%，判定为闪烁拼凑伪轨迹
+		if (nRealPosCount < 7 || ((double)(nPosNum - nRealPosCount) / (nPosNum + EPSINON)) > 0.35)
+		{
+			pnTraceType[i] = 0; // 判定为无效噪点
+			continue;
+		}
+		
+		
 		//nEndPoint = nStartPoint + nPosNum -1;
 
 		//分类
-		// V1.0.3-H 版本 调大有效轨迹帧数：要求连续检测从10帧提升到 15 帧以上才算有效精子，直接剔除掉瞬间闪烁的杂质噪点。
+		// V1.0.3-H 版本 有效轨迹帧数：提高帧数可以直接剔除掉瞬间闪烁的杂质噪点，但是也会剔除掉浮浮沉沉的高活跃A级精子。
+		// 允许 >= 8 帧的短轨迹进入（捕获浮沉的高速 A 级精子）
+		// nImgFileNum: 本次检测采集的总图像帧数
+		// nPosNum: 一颗精子被连续跟踪到的有效轨迹帧数
 		// if (nPosNum <= 10 || nPosNum <= nImgFileNum/3)
-        if (nPosNum <= 15 || nPosNum <= nImgFileNum/2)
+        if (nPosNum <= 8 || nPosNum <= nImgFileNum/4)    // 当 `nPosNum` 小于等于 8 **或者** `nPosNum` 小于等于图片总数的 1/4 时，条件成立 ; 总共拍 30 帧：30 / 4 = 7.5，限制主要由绝对下限 8 帧 起作用，nPosNum必须大于等于9
 		{
 			pnTraceType[i] = 0;//微动或不动
 		}
@@ -8633,6 +8636,28 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			dCLLength = pdAveStd[0]*(nPosNum-1);//平均值*数量
 			free(pdAveStd);
 			pdAveStd = NULL;
+
+			// 【环节三过滤2】：单步瞬时位移突变过滤（防瞬移）
+			// 正常精子在 25fps 下（0.04s），单步位移绝不可能瞬间暴冲超过 8 个像素（约 20 um）
+			bool bHasTeleportJump = false;
+			for (int k = 0; k < nPosNum - 1; k++)
+			{
+				if (dDistTwoImgs[k] > 7.5) // 单帧瞬时跳变超过 7.5 像素
+				{
+					bHasTeleportJump = true;
+					break;
+				}
+			}
+			if (bHasTeleportJump)
+			{
+				// 释放内存并跳过此伪轨迹
+				free(dPointXY); dPointXY = NULL;
+				free(dPointFitXY); dPointFitXY = NULL;
+				free(dDistTwoImgs); dDistTwoImgs = NULL;
+				free(dDistPoints); dDistPoints = NULL;
+				pnTraceType[i] = 0;
+				continue;
+			}
 
 			//直线长度计算
 			dSLLength = sqrt((dPointXY[2*(nPosNum-1)]-dPointXY[0])*(dPointXY[2*(nPosNum-1)]-dPointXY[0])
@@ -8713,7 +8738,7 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 
 			// 新增计算20251207：ALH/MAD/BCF
 
-			pdTraceMotion[nNumTemp].dSL = dSLLength*dRatio;//直线距离
+			pdTraceMotion[nNumTemp].dDSL = dSLLength*dRatio;//直线距离
 			pdTraceMotion[nNumTemp].dVSL = dSLLength*dRatio/(nPosNum - 1)/(dDeltaT + EPSINON);//1VSL
 			pdTraceMotion[nNumTemp].dVCL = dCLLength*dRatio/(nPosNum - 1)/(dDeltaT + EPSINON);//2VCL
 			pdTraceMotion[nNumTemp].dVAP = dAPLength*dRatio/(nPosNum - 1)/(dDeltaT + EPSINON);//3VAP
@@ -8731,13 +8756,63 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
           // 去掉了第二段重复代码，避免计数翻倍（包括两段重复的 if 判断和多余的注释）
           // 使用新阈值过滤，大幅提高对像素抖动和微小位移的抗噪能力
           // 只有通过：运动速度阈值SPERM_VCL_MIN和SPERM_VAP_C_MIN（曲线速度和路径速度双阀值），以及实际直线位移阈值SPERM_DSL_MIN（像素防抖），确认为真正运动的精子时，才计入
-			if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
-			    pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
-			    pdTraceMotion[nNumTemp].dSL  >= SPERM_DSL_MIN)
-			{
-				nNumActiveTrace++; // 只统计真正的活动轨迹数量。前面注释掉的这行，重新写在这里
+			//if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
+			//    pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
+			//    pdTraceMotion[nNumTemp].dDSL  >= SPERM_DSL_MIN)
 
-				// 只累加真正活动精子的运动学特征。前面删除掉的这段，重新写在这里
+pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumTemp].dVCL+ EPSINON);
+
+			// ==============================================================================
+			// CASA 工业级【双阶梯动态门限 - 灵敏度增强版】
+			// 彻底兼顾：死精原地抗噪 (伪活力=0) 与 活精全谱系保留 (A级浮沉 + B/C级NP弱活)
+           // 彻底解决死精中，闪烁光点伪活力问题
+			// ==============================================================================
+			bool bIsValidMotile = false;
+			// V1.0.3-H 版本【闪烁光点伪活力，通用噪点防御】：平均角位移过大且线性度过低，属于空间随机折返乱跳噪点（真实活精绝不可能 MAD>68 且 LIN<0.30）
+			bool bIsErraticNoise = (pdTraceMotion[nNumTemp].dMAD > 65.0 && pdTraceMotion[nNumTemp].dLIN < 0.32);
+
+			if (!bIsErraticNoise)
+			{
+				if (nPosNum < 15)
+				{
+				// 【阶梯1：短轨迹 (8 ~ 14 帧)】
+				// 通道①：高速/浮沉活跃精子（爆发速度明显，死精抖动绝不可能达到 VCL>=15 或 VAP>=10）
+				// 通道②：中速/NP弱活精子（速度达标 + 具备 >1.8 um 真实位移，死精短时抖动位移通常 <1.2 um）
+			    // 针对闪烁噪点：闪烁噪点的 VCL 虽高，但往往只有 1~2 次大幅跳变，或者摆动极不协调
+				// 真实高速 A 级精子必有连续位移 (dDSL >= 2.0)，且 VAP/VCL 具有协调性
+				if (pdTraceMotion[nNumTemp].dVCL >= 15.0 && 
+				    pdTraceMotion[nNumTemp].dVAP >= 10.0 && 
+				    pdTraceMotion[nNumTemp].dDSL  >= 2.0)  // 增加基础位移保护，拦截单点闪烁伪高速
+				{
+					bIsValidMotile = true;
+				}
+				else if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
+				         pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
+				         pdTraceMotion[nNumTemp].dDSL  >= 1.8)
+				{
+					bIsValidMotile = true;
+				}
+			}
+			else
+			{
+				// 【阶梯2：长轨迹 (>= 15 帧)】
+				// 针对普通活精 vs 原地晃动死精：
+				// 死精子即使抖动 20~25 帧，限制其净位移 dDSL 
+				if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
+				    pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
+				    pdTraceMotion[nNumTemp].dDSL  >= SPERM_DSL_MIN &&
+					pdTraceMotion[nNumTemp].dSTR >= 0.15)
+				{
+					bIsValidMotile = true;
+				}
+			}
+
+			// 只有通过阶梯校验的，才计入活动精子并累加运动特征
+			if (bIsValidMotile)
+			{
+				nNumActiveTrace++; // 统计真正的活动轨迹数量
+
+				// 累加活动精子的运动学特征
 				dataOut->dAveVSL += pdTraceMotion[nNumTemp].dVSL;
 				dataOut->dAveVCL += pdTraceMotion[nNumTemp].dVCL;
 				dataOut->dAveVAP += pdTraceMotion[nNumTemp].dVAP;
@@ -8747,7 +8822,7 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 				dataOut->dALH    += pdTraceMotion[nNumTemp].dALH;
 				dataOut->dBCF    += pdTraceMotion[nNumTemp].dBCF;
 				
-				// 加固：单条轨迹 MAD 若为 NaN，不累加，避免污染总均值/同步动物宽窗版本改进MAD，仅对有效活精累加 MAD，且加固防 NaN
+				// 加固：单条轨迹 MAD 若为 NaN，不累加，避免污染总均值
 				if (!_isnan(pdTraceMotion[nNumTemp].dMAD))
 				{
 					dataOut->dMAD += pdTraceMotion[nNumTemp].dMAD;
@@ -8766,36 +8841,37 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 				}
 
 				// 速度分布图
-				//直线
+				// 直线
 				int nIndexSL = (int)(pdTraceMotion[nNumTemp].dVSL / 10.0 + 0.5);
 				if (nIndexSL <= 9) dataOut->dHistVSL[nIndexSL]++;
 				
-				//曲线
+				// 曲线
 				int nIndexCL = (int)(pdTraceMotion[nNumTemp].dVCL / 10.0 + 0.5);
 				if (nIndexCL <= 9) dataOut->dHistVCL[nIndexCL]++;
 				
-				//路径
+				// 路径
 				int nIndexAP = (int)(pdTraceMotion[nNumTemp].dVAP / 10.0 + 0.5);
 				if (nIndexAP <= 9) dataOut->dHistVAP[nIndexAP]++;
 
-				// 运动分级 A / B / C （低于SPERM_VAP_C_MIN阈值的不会进入这里，自动留给 D 级）
-				if (pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_A_MIN )
+				// 运动分级 A / B / C
+				if (pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_A_MIN)
 				{
 					nNumClassA++;
 				} 
 				else if (pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= 0.6)
-				// WHO‑6 的 CASA 实现惯例：主速度使用 VAP，同时用 STR (VSL/VAP) 过滤非前向高速摆动精子
 				{
 					nNumClassB++;
 				}
 				else
 				{
-					nNumClassC++; // 只有在 VAP >= SPERM_VAP_C_MIN 时才会进入这段代码统计，这里剩下的就是 C 级
+					// 严格保护：仅当真正具备最低活力特征时才计入 C 级 (NP)，否则不计入
+					if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dDSL >= SPERM_DSL_MIN)				
+					nNumClassC++;
 				}
 			}
 			else
 			{
-				pnTraceType[i] = 0; // 低于运动阈值SPERM_VAP_C_MIN，根本进不了这段代码统计，明确被标记为不动精子（D），包括实际上不动/微动，不绘制运动轨迹
+				pnTraceType[i] = 0; // 不满足动态门限，标记为不动精子（D），不绘制运动轨迹
 			}
 
 			nNumTemp++;
@@ -8810,28 +8886,9 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			dDistPoints = NULL;
 		}
 	}
+	}
 
 
-
-	//求各种数量
-	//int nNumTotalTemp = (int)dataOut->nTotalSpermNum;
-	//int nNumABCTemp = (int)dataOut->nActiveSpermNum;
-	////nNumClassD = nNumTotalTemp-nNumABCTemp+nNumTemp-nNumClassA-nNumClassB-nNumClassC;
-	//nNumABCTemp = nNumClassA + nNumClassB + nNumClassC;
-	//nNumTotalTemp = nNumABCTemp + nNumClassD;
-	//dataOut->nTotalSpermNum = nNumTotalTemp;
-	//dataOut->nActiveSpermNum = nNumABCTemp;
-
-	//
-	////运动分级
-	//dataOut->dRatioClassA = 100*nNumClassA/(nNumTotalTemp+EPSINON);
-	//dataOut->dRatioClassB = 100*nNumClassB/(nNumTotalTemp+EPSINON);
-	//dataOut->dRatioClassC = 100*nNumClassC/(nNumTotalTemp+EPSINON);
-	//dataOut->dRatioClassD = 100 - dataOut->dRatioClassA - dataOut->dRatioClassB - dataOut->dRatioClassC;
-	//dataOut->dRatioClassPR = dataOut->dRatioClassA + dataOut->dRatioClassB;
-	//dataOut->dRatioClassNP = dataOut->dRatioClassC;
-	//dataOut->dRatioClassIM = dataOut->dRatioClassD;
-	//dataOut->dActiveSpermRatio = dataOut->dRatioClassPR + dataOut->dRatioClassNP;
 
 	 // V1.0.3-H 版本  
     // =========================================================================
@@ -9035,44 +9092,6 @@ int drawTraceImg(const char **ppcFilePath, int const& nImgFileNum, const char **
 		IplImage *pImgContourShow = clipCenterImage(pImgSrcTemp, nCenterPara);
 		cvReleaseImage(&pImgSrcTemp);
 
-		//for (int j = 0; j<nTraceIndex; j++)
-		//{
-		//	CvScalar cvColor = DEADCOlOUR;
-		//	if (pnTraceType[j] == 2)//直线（快速），红色
-		//	{
-		//		cvColor = ALIVECOlOUR;
-		//	}
-		//	else if (pnTraceType[j] == 1)//曲线（慢速），蓝色
-		//	{
-		//		cvColor = DEADCOlOUR;
-		//	}
-		//	else if (pnTraceType[j] == 0)//微动或不动
-		//	{
-		//		cvColor = DEADCOlOUR;  // 致命错误：这里把不动精子赋成了蓝色！
-		//	}
-		//
-		//	//画线, 紧接着下面不论 0、1、2，都无差别执行了 cvLine 画线！
-		//	if (i >= 1)
-		//	{
-		//		for (int k = 0; k<i; k++)//连续的轨迹绘制
-		//		{
-		//			if (pSSpermTraceInfor[j*nImgFileNum+k].fPosX > 0.2 && pSSpermTraceInfor[j*nImgFileNum+k].fPosY > 0.2
-		//				&& pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX > 0.2 && pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY > 0.2)//尚未生成
-		//			{
-		//				CvPoint cvCenter0 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosX),cvRound(pSSpermTraceInfor[j*nImgFileNum+k].fPosY));
-		//				CvPoint cvCenter1 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosX),cvRound(pSSpermTraceInfor[j*nImgFileNum+k+1].fPosY));
-		//				//cvColor = CV_RGB(253,90,78);//红色
-		//				double dLengthTemp = sqrt((cvCenter1.x - cvCenter0.x)*(cvCenter1.x - cvCenter0.x) + (cvCenter1.y - cvCenter0.y)*(cvCenter1.y - cvCenter0.y));
-
-		//				if (dLengthTemp < 6*dLimitedLength)
-		//				{
-		//					cvLine(pImgContourShow, cvCenter0, cvCenter1,cvColor,2);
-		//				}
-		//			}
-		//		}
-		//	}
-		//}
-
 		// V1.0.3-H 版本  修改：在 drawTraceImg 中，对 pnTraceType == 0 的不动精子直接跳过不画线
 		for (int j = 0; j < nTraceIndex; j++)
 		{
@@ -9195,25 +9214,6 @@ int drawFinalTraceImg(const char **ppcFilePath, int const& nImgFileNum, const ch
 					cvColor = CV_RGB(253,90,78);//红色
 					cvLine(pImgContourShow, cvCenter0, cvCenter1,cvColor,2);
 				}
-
-				/*
-				if (pSSpermTraceInfor[j*nImgFileNum+i-1].nPredictNum == -1//轨迹的终结
-					|| pSSpermTraceInfor[j*nImgFileNum+i-1].fPosX < EPSINON || pSSpermTraceInfor[j*nImgFileNum+i-1].fPosY < EPSINON)//尚未生成
-				{
-					continue;
-				}
-
-				CvPoint cvCenter0 = cvPoint(cvRound(pSSpermTraceInfor[j*nImgFileNum+i-1].fPosX),cvRound(pSSpermTraceInfor[j*nImgFileNum+i-1].fPosY));
-				cvColor = CV_RGB(253,90,78);//红色
-				cvLine(pImgContourShow, cvCenter0, cvCenter1,cvColor,2);
-				
-				
-				//cvColor = CV_RGB(253,90,78);//红色
-				//cvCircle(pImgContourShow, cvCenter0, nRadius, cvColor, 2);
-				if (cvCenter0.x > 0 && cvCenter0.y > 0 && cvCenter1.x > 0 && cvCenter1.y > 0)
-				{
-					cvLine(pImgContourShow, cvCenter0, cvCenter1,cvColor,2);
-				}*/
 			}
 		}
 
