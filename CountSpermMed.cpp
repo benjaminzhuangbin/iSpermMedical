@@ -5400,123 +5400,6 @@ void getStdParticleNum(IplImage *pImgBinary, ParaRange *pSAveSpermRange, int nSp
 	cvReleaseMemStorage(&storage); 
 }
 
-//获取目标轮廓及其几何信息
-/*
-void getImgContourInfor(IplImage *pImgBinary, ParaRange *pSAveSpermRange, int nSpermType, SpermInfor *pSSpermInfor, int &nSpermIndex)
-{
-	CvMemStorage *storage = cvCreateMemStorage();
-	CvSeq* firstcontour = NULL;
-
-	IplImage * pImgDraw =cvCreateImage(cvGetSize(pImgBinary),pImgBinary->depth,pImgBinary->nChannels);
-	cvZero(pImgDraw);
-
-	//先对输入图像做一次二值化
-	cvThreshold( pImgBinary, pImgBinary,
-		100, 255, CV_THRESH_BINARY);//固定阈值分割
-
-	double dConArea, dMinAreaTemp, dMaxAreaTemp;
-	if (nSpermType == 7)//初始筛选（标粒尺寸、新鲜人精、干涸人精）
-	{
-		dMinAreaTemp = dMinArea;
-		dMaxAreaTemp = dMaxArea;
-	} 
-	else if (nSpermType == 6)//ABCD
-	{
-		dMinAreaTemp = 0.5 * pSAveSpermRange->dAreaAve;
-		dMaxAreaTemp = 1.5 * pSAveSpermRange->dAreaAve;
-	} 
-	else if (nSpermType == 5)//AB类
-	{
-		dMinAreaTemp = 0.2 * pSAveSpermRange->dAreaAve;
-		dMaxAreaTemp = 2 * pSAveSpermRange->dAreaAve;
-	}
-	else if (nSpermType == 3)//C类
-	{
-		dMinAreaTemp = 0.1 * pSAveSpermRange->dAreaAve;
-		dMaxAreaTemp = 0.2 * pSAveSpermRange->dAreaAve;
-	}
-	else if (nSpermType == 4)//D类
-	{
-		dMinAreaTemp = 0.2 * pSAveSpermRange->dAreaAve;
-		dMaxAreaTemp = 2.5 * pSAveSpermRange->dAreaAve;
-	}	
-	else if (nSpermType == 0)//其他，测试用
-	{
-		dMinAreaTemp = 0.4 * pSAveSpermRange->dAreaAve;
-		dMaxAreaTemp = 2 * pSAveSpermRange->dAreaAve;
-	}
-	else
-	{
-		dMinAreaTemp = 0.3 * pSAveSpermRange->dAreaAve;
-		dMaxAreaTemp = 2 * pSAveSpermRange->dAreaAve;
-	}
-	CvBox2D GeoInfor;
-
-	CvContourScanner scanner = cvStartFindContours(pImgBinary,
-								storage,
-								sizeof(CvContour),
-								CV_RETR_LIST,
-								CV_CHAIN_APPROX_SIMPLE,
-								cvPoint(0,0));
-	CvSeq * cTemp =NULL;
-	while( (cTemp = cvFindNextContour(scanner) ) != NULL)//开始查找
-	{ 
-		//面积
-		dConArea = fabs(cvContourArea(cTemp,CV_WHOLE_SEQ,0));
-
-		//轮廓面积大于dMinArea，并且小于dMaxArea，则留下，反之，则删除。 
-		if(dConArea > dMinAreaTemp && dConArea < dMaxAreaTemp && nSpermIndex < MAXSPERMNUM )
-		{
-			//绘制符合条件的轮廓
-			cvDrawContours(pImgDraw,cTemp,CV_RGB(255,255,255),CV_RGB(255,255,255),0, CV_FILLED);
-			nSpermIndex = nSpermIndex+1;
-			
-			//质心，长短轴，角度
-			double dMajAxsLen = 0;
-			double dMinAxsLen = 0;
-			GeoInfor = cvMinAreaRect2(cTemp, NULL);//最小外接矩形
-			if (GeoInfor.size.width >= GeoInfor.size.height)
-			{
-				dMajAxsLen = GeoInfor.size.width;
-				dMinAxsLen = GeoInfor.size.height;
-			}else
-			{
-				dMajAxsLen = GeoInfor.size.height;
-				dMinAxsLen = GeoInfor.size.width;
-			}
-
-			//长短轴判断
-			//////
-			if (dMinAxsLen > 2)
-			{
-				double dShapeRatio = dMajAxsLen/dMinAxsLen;
-				if (dShapeRatio >= pSAveSpermRange->dShapeRatio && dShapeRatio <= 4*pSAveSpermRange->dShapeRatio)
-				{
-					//绘制符合条件的轮廓
-					cvDrawContours(pImgDraw,cTemp,CV_RGB(255,255,255),CV_RGB(255,255,255),0, CV_FILLED);
-					nSpermIndex = nSpermIndex+1;
-				}
-			}
-			////
-		}
-		else  
-		{  
-			cvSubstituteContour(scanner,NULL);//删除当前的轮廓
-		}  
-	}
-	firstcontour = cvEndFindContours(&scanner);//把找到的轮廓返回到firstContour中。
-	cvZero(pImgBinary);
-	cvCopy(pImgDraw, pImgBinary);
-	cvReleaseImage(&pImgDraw);
-
-	//test
-	//cvSaveImage("E:/CreateCare/DataSample/Case12/ResultImgs/输出图像2.jpg",pImgBinary);//图片文件存储
-
-	//资源释放
-	cvReleaseMemStorage(&storage); 
-}
-*/
-
 //统计目标几何特征范围（迭代计算）
 ParaRange getSpermParaRangeIter(SpermInfor *pSSpermInfor, int &nSpermNum, int &nStatus)
 {
@@ -8546,8 +8429,8 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			}
 		}
 
-		// 【环节三过滤1】：如果真实观测点数太少（< 7 帧），或者预测虚点占比超过 35%，判定为闪烁拼凑伪轨迹
-		if (nRealPosCount < 7 || ((double)(nPosNum - nRealPosCount) / (nPosNum + EPSINON)) > 0.35)
+		// 【环节三过滤1】：如果真实观测点数太少（< 6 帧），或者预测虚点占比超过 45%，判定为闪烁拼凑伪轨迹
+		if (nRealPosCount < 6 || ((double)(nPosNum - nRealPosCount) / (nPosNum + EPSINON)) > 0.45)
 		{
 			pnTraceType[i] = 0; // 判定为无效噪点
 			continue;
@@ -8642,7 +8525,7 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			bool bHasTeleportJump = false;
 			for (int k = 0; k < nPosNum - 1; k++)
 			{
-				if (dDistTwoImgs[k] > 7.5) // 单帧瞬时跳变超过 7.5 像素
+				if (dDistTwoImgs[k] > 8.5) // 单帧瞬时跳变超过 8.5 像素
 				{
 					bHasTeleportJump = true;
 					break;
@@ -8768,8 +8651,11 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
            // 彻底解决死精中，闪烁光点伪活力问题
 			// ==============================================================================
 			bool bIsValidMotile = false;
-			// V1.0.3-H 版本【闪烁光点伪活力，通用噪点防御】：平均角位移过大且线性度过低，属于空间随机折返乱跳噪点（真实活精绝不可能 MAD>68 且 LIN<0.30）
-			bool bIsErraticNoise = (pdTraceMotion[nNumTemp].dMAD > 65.0 && pdTraceMotion[nNumTemp].dLIN < 0.32);
+			// V1.0.3-H 版本【闪烁光点伪活力，通用噪点防御】
+			// 闪烁噪点判据：原地无规则散斑闪烁跳跃，无有效推进（MAD高、LIN极低且无大直线速度）
+           bool bIsErraticNoise = (pdTraceMotion[nNumTemp].dMAD > 85.0 && 
+                        pdTraceMotion[nNumTemp].dLIN < 0.25 && 
+                        pdTraceMotion[nNumTemp].dVSL < 15);
 
 			if (!bIsErraticNoise)
 			{
@@ -8801,7 +8687,7 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 				if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
 				    pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
 				    pdTraceMotion[nNumTemp].dDSL  >= SPERM_DSL_MIN &&
-					pdTraceMotion[nNumTemp].dSTR >= 0.15)
+					pdTraceMotion[nNumTemp].dSTR >= 0.05)
 				{
 					bIsValidMotile = true;
 				}
@@ -8863,9 +8749,7 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 					nNumClassB++;
 				}
 				else
-				{
-					// 严格保护：仅当真正具备最低活力特征时才计入 C 级 (NP)，否则不计入
-					if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && pdTraceMotion[nNumTemp].dDSL >= SPERM_DSL_MIN)				
+				{		
 					nNumClassC++;
 				}
 			}
@@ -8888,8 +8772,6 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 	}
 	}
 
-
-
 	 // V1.0.3-H 版本  
     // =========================================================================
 	// 求各种数量与运动分级（修复篡改总数与重复累加，完全兼容下文变量）
@@ -8898,6 +8780,24 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 	// 1. 真实活动精子数（由动力学达标的 A+B+C 轨迹决定）
 	int nNumABCTemp = nNumClassA + nNumClassB + nNumClassC;
 	
+	// 全死精闪烁样本全局熔断保护：
+	// 全死精图即使有噪点突破，直线精子数也极低(nNumSL <= 3)，且直线平均速度极低(< 15 um/s)
+	// 活精图直线数有 38 个、速度近 40 um/s，完全不可能触发
+	if (nNumABCTemp > 0)
+	{
+		double dCurrentMeanVSL = dataOut->dAveVSL / (double)nNumABCTemp;
+		if (dataOut->nNumSL <= 3 && dCurrentMeanVSL < 15.0)
+		{
+			nNumClassA = 0;
+			nNumClassB = 0;
+			nNumClassC = 0;
+			nNumABCTemp = 0;
+			nNumActiveTrace = 0;
+			dataOut->nNumSL = 0;
+			dataOut->nNumCL = 0;
+		}
+	}
+
 	// 2. 继承并锁定全景精子总数基准（杜绝篡改）
 	int nNumTotalTemp = (int)dataOut->nTotalSpermNum;
 	if (nNumABCTemp > nNumTotalTemp)
@@ -8942,32 +8842,39 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 	dataOut->dActiveSpermRatio = dataOut->dRatioClassPR + dataOut->dRatioClassNP; // 总活力 PR+NP
 
 
-	    // V1.0.3-H 版本 【方案1新增】：整片样本背景噪声滤除机制
-		// 当所有计算出的活动精子比例极低（例如低于 SPERM_SAMPLE_NOISE_GATE=2.0%），认定为纯死精样本，清零噪点
-		if (dataOut->dActiveSpermRatio < SPERM_SAMPLE_NOISE_GATE)
-		{
-			nNumClassA = 0;
-			nNumClassB = 0;
-			nNumClassC = 0;
-			nNumClassD = nNumTotalTemp;
-			nNumABCTemp = 0;
+	// V1.0.3-H 工业级样本防抖：
+		// 条件1：活动比例极低 (< 3.0%) SPERM_SAMPLE_NOISE_GATE
+		// 条件2：整片无任何直线运动精子 (nNumSL == 0) 且总活动数 < 15 个（典型散斑闪烁特征）
+		// 条件3：全片检测到的活动目标平均直线推进速度极低 (dAveVSL < 12.0 um/s)
+		bool bIsGhostMotionSample = (dataOut->dActiveSpermRatio < SPERM_SAMPLE_NOISE_GATE) ||
+									(dataOut->nNumSL == 0 && dataOut->nActiveSpermNum < 15) ||
+									(dataOut->nActiveSpermNum > 0 && (dataOut->dAveVSL / (nNumActiveTrace + EPSINON)) < 12.0);
 
-			dataOut->nActiveSpermNum = 0;
-			dataOut->dRatioClassA = 0.0;
-			dataOut->dRatioClassB = 0.0;
-			dataOut->dRatioClassC = 0.0;
-			dataOut->dRatioClassD = 100.0;
-			dataOut->dRatioClassPR = 0.0;
-			dataOut->dRatioClassNP = 0.0;
-			dataOut->dRatioClassIM = 100.0;
-			dataOut->dActiveSpermRatio = 0.0;
-			dataOut->nNumSL = 0;
-			dataOut->nNumCL = 0;
-			dataOut->dRatioSL = 0.0;
-			dataOut->dRatioCL = 0.0;
-			dataOut->dAveVSL = 0.0;
-			dataOut->dAveVCL = 0.0;
-			dataOut->dAveVAP = 0.0;
+    if (bIsGhostMotionSample)
+    {
+        // 整片判定为死精，活力严格归零
+        nNumClassA = 0;
+        nNumClassB = 0;
+        nNumClassC = 0;
+        nNumClassD = nNumTotalTemp;
+        nNumABCTemp = 0;
+
+        dataOut->nActiveSpermNum = 0;
+        dataOut->dRatioClassA = 0.0;
+        dataOut->dRatioClassB = 0.0;
+        dataOut->dRatioClassC = 0.0;
+        dataOut->dRatioClassD = 100.0;
+        dataOut->dRatioClassPR = 0.0;
+        dataOut->dRatioClassNP = 0.0;
+        dataOut->dRatioClassIM = 100.0;
+        dataOut->dActiveSpermRatio = 0.0;
+        dataOut->nNumSL = 0;
+        dataOut->nNumCL = 0;
+        dataOut->dRatioSL = 0.0;
+        dataOut->dRatioCL = 0.0;
+        dataOut->dAveVSL = 0.0;
+        dataOut->dAveVCL = 0.0;
+        dataOut->dAveVAP = 0.0;
 
 			// V1.0.3-H 版本  【关键新增】：整片全死精时，将所有轨迹标记同步清零为 0（不动），防止图像绘制虚假轨迹
 			for (int k = 0; k < nTraceIndex; k++)
