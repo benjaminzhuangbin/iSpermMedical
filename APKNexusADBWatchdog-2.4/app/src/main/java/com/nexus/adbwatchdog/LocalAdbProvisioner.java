@@ -104,7 +104,7 @@ public final class LocalAdbProvisioner {
                 "mount -o remount,ro /system ; " +
                 "echo PROV_DONE_OK";
 
-        String suCmd = "su -c \"" + copyScript + "\"";
+        String suCmd = "su 0 /system/bin/sh -c \"" + copyScript + "\"";
 
         // 4. Run through local ADB
         boolean adbSuccess = executeAdbShellCommand(crypto, "127.0.0.1", 5555, suCmd);

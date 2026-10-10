@@ -6,26 +6,24 @@ REM Hospital users never run this — manufacturing / engineering only.
 setlocal
 cd /d "%~dp0\.."
 
-if not exist "factory\nexus_su" (
-  echo ERROR: factory\nexus_su missing. Build native helper first.
-  exit /b 1
+if exist "app\build\outputs\apk\debug\app-debug.apk" (
+  if not exist "release" mkdir "release"
+  copy /Y "app\build\outputs\apk\debug\app-debug.apk" "release\NexusADBWatchdog.apk" >nul
 )
+
 if not exist "release\NexusADBWatchdog.apk" (
+  echo [info] Building APK from gradle...
+  call gradlew.bat assembleDebug
   if exist "app\build\outputs\apk\debug\app-debug.apk" (
     if not exist "release" mkdir "release"
     copy /Y "app\build\outputs\apk\debug\app-debug.apk" "release\NexusADBWatchdog.apk" >nul
-  ) else (
-    echo [info] Building APK from gradle...
-    call gradlew.bat assembleDebug
-    if exist "app\build\outputs\apk\debug\app-debug.apk" (
-      if not exist "release" mkdir "release"
-      copy /Y "app\build\outputs\apk\debug\app-debug.apk" "release\NexusADBWatchdog.apk" >nul
-    )
   )
 )
 
-echo [push] nexus_su + APK + install script
-adb push factory\nexus_su /data/local/tmp/nexus_su
+echo [push] APK + install script
+if exist "factory\nexus_su" (
+  adb push factory\nexus_su /data/local/tmp/nexus_su >nul 2>&1
+)
 if exist "release\NexusADBWatchdog.apk" (
   adb push release\NexusADBWatchdog.apk /data/local/tmp/NexusADBWatchdog.apk
 ) else if exist "app\build\outputs\apk\debug\app-debug.apk" (

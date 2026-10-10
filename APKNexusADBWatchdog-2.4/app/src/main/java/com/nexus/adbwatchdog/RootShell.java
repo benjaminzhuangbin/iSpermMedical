@@ -144,6 +144,11 @@ public final class RootShell {
                 attempts.add("missing:" + path);
                 continue;
             }
+            Result r0 = execRkSu0(path, "id", 8);
+            attempts.add(formatAttempt(r0));
+            if (outputLooksLikeRoot(r0)) {
+                return markRootSuccess(r0, path, "RK_SU_0:" + path);
+            }
             Result r = execDirectSuC(path, "id", 8);
             attempts.add(formatAttempt(r));
             if (outputLooksLikeRoot(r)) {
@@ -158,9 +163,14 @@ public final class RootShell {
             bestFail = r2.timedOut ? r2 : r;
         }
 
-        // 2) Stock su — expected to fail with "uid N not allowed to su" for app UIDs
+        // 2) Stock su — try RK su 0 syntax and standard syntax
         String[] stock = listExisting(STOCK_SU_PROBE);
         for (int i = 0; i < stock.length; i++) {
+            Result r0 = execRkSu0(stock[i], "id", 8);
+            attempts.add(formatAttempt(r0));
+            if (outputLooksLikeRoot(r0)) {
+                return markRootSuccess(r0, stock[i], "RK_STOCK_SU_0:" + stock[i]);
+            }
             Result r = execDirectSuC(stock[i], "id", 8);
             attempts.add(formatAttempt(r));
             if (outputLooksLikeRoot(r)) {
@@ -225,9 +235,19 @@ public final class RootShell {
 
         String helper = (sSuPath != null && sSuPath.length() > 0) ? sSuPath : null;
         if (helper != null && fileExists(helper)) {
+            if (sRootMethod != null && sRootMethod.startsWith("RK_")) {
+                Result r0 = execRkSu0(helper, command, timeoutSec);
+                if (isCommandSuccess(r0, command)) {
+                    return r0;
+                }
+            }
             Result r = execDirectSuC(helper, command, timeoutSec);
             if (isCommandSuccess(r, command)) {
                 return r;
+            }
+            Result r0 = execRkSu0(helper, command, timeoutSec);
+            if (isCommandSuccess(r0, command)) {
+                return r0;
             }
             Result r2 = execShSuC("/system/bin/sh", helper, command, timeoutSec);
             if (isCommandSuccess(r2, command)) {
@@ -236,18 +256,34 @@ public final class RootShell {
         }
 
         // Re-probe helpers if cached path vanished after OTA
-        for (int i = 0; i < NEXUS_SU_PATHS.length; i++) {
-            if (!fileExists(NEXUS_SU_PATHS[i])) {
+        String[] probeAll = new String[]{
+                "/system/xbin/nexus_su",
+                "/system/xbin/su",
+                "/system/bin/su",
+                "/sbin/su"
+        };
+        for (int i = 0; i < probeAll.length; i++) {
+            if (!fileExists(probeAll[i])) {
                 continue;
             }
-            Result r = execDirectSuC(NEXUS_SU_PATHS[i], command, timeoutSec);
+            Result r0 = execRkSu0(probeAll[i], command, timeoutSec);
+            if (isCommandSuccess(r0, command)) {
+                sSuPath = probeAll[i];
+                return r0;
+            }
+            Result r = execDirectSuC(probeAll[i], command, timeoutSec);
             if (isCommandSuccess(r, command)) {
-                sSuPath = NEXUS_SU_PATHS[i];
+                sSuPath = probeAll[i];
                 return r;
             }
         }
 
         return new Result(-1, "", "root helper exec failed for: " + command, false, "NONE");
+    }
+
+    private static Result execRkSu0(String suBin, String command, int timeoutSec) {
+        String method = "RK_SU_0:" + suBin;
+        return execArgv(new String[]{suBin, "0", "/system/bin/sh", "-c", command}, timeoutSec, method, true);
     }
 
     private static boolean markRootSuccess(Result r, String suPath, String method) {

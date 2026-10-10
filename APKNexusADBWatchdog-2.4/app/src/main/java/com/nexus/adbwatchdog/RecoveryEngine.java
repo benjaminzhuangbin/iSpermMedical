@@ -17,6 +17,7 @@ public final class RecoveryEngine {
     public static final String ACTION_NONE = "NONE";
     public static final String ACTION_START_ADBD = "START_ADBD";
     public static final String ACTION_RESTART_ADBD = "RESTART_ADBD";
+    public static final String ACTION_OOB_RECOVER = "OOB_RECOVER_ADBD";
     public static final String ACTION_FIX_TCP_PORT = "FIX_TCP_PORT";
     public static final String ACTION_COOLDOWN = "RECOVERY_COOLDOWN";
     public static final String ACTION_RATE_LIMIT = "RATE_LIMIT";
@@ -24,6 +25,8 @@ public final class RecoveryEngine {
 
     private final WatchdogConfig cfg;
     private int restartCount;
+    private int oobTriggerCount;
+    private long lastOobTimeMs;
     private long windowStartMs;
     private long cooldownUntilMs;
     private boolean inCooldown;
@@ -43,6 +46,10 @@ public final class RecoveryEngine {
         return restartCount;
     }
 
+    public int getOobTriggerCount() {
+        return oobTriggerCount;
+    }
+
     public boolean isInCooldown() {
         return inCooldown;
     }
@@ -58,7 +65,7 @@ public final class RecoveryEngine {
     /**
      * @return true if a recovery action was executed this cycle
      */
-    public boolean evaluate(boolean adbdOk, boolean portOk, boolean propOk, int established,
+    public boolean evaluate(boolean adbdOk, boolean portOk, boolean transportOk, boolean propOk, int established,
                             WatchdogLogger log) {
         tickWindow(log);
         tickCooldown();
@@ -72,8 +79,8 @@ public final class RecoveryEngine {
 
         boolean coreUp = adbdOk && portOk;
 
-        // HARD: live PC/QtScrcpy session — never restart adbd
-        if (coreUp && established > 0) {
+        // Healthy session or idle: adbd process exists and port 5555 listens
+        if (coreUp) {
             if (!propOk) {
                 setTcpPortProps(); // soft fix only
             }
@@ -81,37 +88,12 @@ public final class RecoveryEngine {
             return false;
         }
 
-        // Healthy idle (including ESTABLISHED=0): do nothing
-        if (coreUp && propOk) {
-            noteHealthy(log);
-            return false;
-        }
-
-        // Core up but prop wrong, no live client: may restart once (rate-limited)
-        if (coreUp && !propOk) {
-            if (inCooldown) {
-                lastAction = ACTION_COOLDOWN;
-                return false;
-            }
-            if (!rateAllow(log)) {
-                return false;
-            }
-            log.event("ADB FAULT DETECTED", "FAIL_REASON=TCP_PORT_PROP",
-                    "why=persist.adb.tcp.port != 5555; action=FIX_TCP_PORT");
-            setTcpPortProps();
-            restartAdbd();
-            lastAction = ACTION_FIX_TCP_PORT;
-            log.event("RECOVERY ACTION", "FIX_TCP_PORT / adbd restarted", "");
-            noteAttempt(log);
-            return true;
-        }
-
         if (inCooldown) {
             lastAction = ACTION_COOLDOWN;
             return false;
         }
 
-        // CASE A
+        // CASE 1: adbd process missing
         if (!adbdOk) {
             if (!rateAllow(log)) {
                 return false;
@@ -126,7 +108,7 @@ public final class RecoveryEngine {
             return true;
         }
 
-        // CASE B
+        // CASE 2: TCP 5555 not listening
         if (!portOk) {
             if (!rateAllow(log)) {
                 return false;
@@ -141,6 +123,33 @@ public final class RecoveryEngine {
         }
 
         return false;
+    }
+
+    /**
+     * Out-of-band recovery triggered by PC via UDP 5556 control packet.
+     * Guaranteed recovery path when Windows ADB transport reports offline.
+     */
+    public synchronized boolean triggerOobRecovery(String source, WatchdogLogger log) {
+        long now = System.currentTimeMillis();
+        // 15-second debounce window
+        if (now - lastOobTimeMs < 15000L) {
+            if (log != null) {
+                log.event("OOB RECOVERY DEBOUNCED", "source=" + source,
+                        "adbd recently recovered; ignoring rapid duplicate request");
+            }
+            return false;
+        }
+        lastOobTimeMs = now;
+        oobTriggerCount++;
+
+        if (log != null) {
+            log.event("OOB RECOVERY TRIGGERED", "source=" + source,
+                    "PC requested out-of-band adbd recovery; action=RESTART_ADBD");
+        }
+        restartAdbd();
+        lastAction = ACTION_OOB_RECOVER;
+        noteAttempt(log);
+        return true;
     }
 
     private void noteHealthy(WatchdogLogger log) {
@@ -223,23 +232,35 @@ public final class RecoveryEngine {
     }
 
     public static void setTcpPortProps() {
-        RootShell.execSu("setprop persist.adb.tcp.port " + WatchdogConfig.ADB_PORT_STR);
-        RootShell.execSu("setprop service.adb.tcp.port " + WatchdogConfig.ADB_PORT_STR);
+        setPropSafe("persist.adb.tcp.port", WatchdogConfig.ADB_PORT_STR);
+        setPropSafe("service.adb.tcp.port", WatchdogConfig.ADB_PORT_STR);
+        setPropSafe("persist.sys.usb.config", "mass_storage,adb");
+        setPropSafe("sys.usb.config", "mass_storage,adb");
+    }
+
+    private static void setPropSafe(String key, String val) {
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            java.lang.reflect.Method setM = sp.getMethod("set", String.class, String.class);
+            setM.invoke(null, key, val);
+        } catch (Throwable ignored) {
+        }
+        RootShell.execSu("setprop " + key + " " + val);
     }
 
     public static void startAdbd() {
-        RootShell.execSu("setprop ctl.start adbd");
+        setPropSafe("ctl.start", "adbd");
     }
 
     public void restartAdbd() {
         setTcpPortProps();
-        RootShell.execSu("setprop ctl.stop adbd");
+        setPropSafe("ctl.stop", "adbd");
         try {
             Thread.sleep(cfg.adbdSleepSec * 1000L);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        RootShell.execSu("setprop ctl.start adbd");
+        setPropSafe("ctl.start", "adbd");
         try {
             Thread.sleep(cfg.adbdSleepSec * 1000L);
         } catch (InterruptedException e) {

@@ -14,15 +14,29 @@ import {
   Copy,
   Check,
   Radio,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 import { WatchdogStatus, WatchdogLogEntry } from '../types';
 import { globalWatchdog } from '../lib/watchdogEngine';
+import { downloadFixedWatchdogPackage } from '../lib/packageDownloader';
 
 export const NexusWatchdogConsole: React.FC = () => {
   const [status, setStatus] = useState<WatchdogStatus | null>(null);
   const [logs, setLogs] = useState<WatchdogLogEntry[]>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const handleDownloadZip = async () => {
+    try {
+      setIsDownloading(true);
+      await downloadFixedWatchdogPackage();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   const [customCommand, setCustomCommand] = useState('adb shell "/system/xbin/nexus_su -c id"');
   const [commandOutput, setCommandOutput] = useState<string | null>(null);
 
@@ -81,6 +95,14 @@ export const NexusWatchdogConsole: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleDownloadZip}
+            disabled={isDownloading}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-md shadow-cyan-600/30 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {isDownloading ? 'Packaging ZIP...' : 'Download APKNexusADBWatchdog-2.4.zip'}
+          </button>
           <button
             onClick={handleCopyStatus}
             className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"

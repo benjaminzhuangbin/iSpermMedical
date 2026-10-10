@@ -10,6 +10,7 @@ public final class WatchdogConfig {
 
     public static final int ADB_PORT = 5555;
     public static final String ADB_PORT_STR = "5555";
+    public static final int OOB_PORT = 5556;
 
     public int intervalSec = 5;
     public int maxRestart = 3;

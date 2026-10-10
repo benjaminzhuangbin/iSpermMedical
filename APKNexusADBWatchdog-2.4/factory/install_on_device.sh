@@ -28,24 +28,20 @@ PRIV_APK="$PRIV_DIR/NexusADBWatchdog.apk"
 echo "=== Nexus ADB Watchdog factory install ==="
 id
 
-if [ ! -f "$NEXUS_SU_SRC" ]; then
-  echo "ERROR: missing $NEXUS_SU_SRC"
-  exit 1
-fi
 if [ ! -f "$APK_SRC" ]; then
   echo "ERROR: missing $APK_SRC"
   exit 1
 fi
 
 # Remount system RW (Rockchip Android 5.1.1)
-mount -o remount,rw /system 2>/dev/null || mount -o remount,rw / 2>/dev/null || true
+mount -o rw,remount /system 2>/dev/null || mount -o remount,rw /system 2>/dev/null || mount -o rw,remount /dev/block/platform/ff0f0000.rksdmmc/by-name/system /system 2>/dev/null || mount -o remount,rw / 2>/dev/null || true
 
 echo "[1/3] Configure system root access"
-if [ -f "$NEXUS_SU_SRC" ]; then
-  cp "$NEXUS_SU_SRC" "$NEXUS_SU_DST" 2>/dev/null || true
-fi
-if [ ! -f "$NEXUS_SU_DST" ] || [ ! -s "$NEXUS_SU_DST" ]; then
-  cp /system/xbin/su "$NEXUS_SU_DST" 2>/dev/null || true
+# On Rockchip Android, clone stock su (67KB native ELF) and grant setuid 6755
+if [ -f "/system/xbin/su" ]; then
+  cp /system/xbin/su "$NEXUS_SU_DST"
+elif [ -f "$NEXUS_SU_SRC" ]; then
+  cp "$NEXUS_SU_SRC" "$NEXUS_SU_DST"
 fi
 chown 0:0 "$NEXUS_SU_DST" 2>/dev/null || chown root:root "$NEXUS_SU_DST" 2>/dev/null || true
 chmod 6755 "$NEXUS_SU_DST" 2>/dev/null || chmod 4755 "$NEXUS_SU_DST" 2>/dev/null || true
@@ -57,11 +53,16 @@ echo "[2/3] Verify root access"
 
 echo "[3/3] Install APK as priv-app -> $PRIV_APK"
 mkdir -p "$PRIV_DIR"
+chmod 755 "$PRIV_DIR"
 cp "$APK_SRC" "$PRIV_APK"
 chmod 644 "$PRIV_APK"
-chown root:root "$PRIV_APK"
-# Remove any previous data-user install so PackageManager prefers system path
-pm uninstall com.nexus.adbwatchdog 2>/dev/null || true
+chown 0:0 "$PRIV_APK" 2>/dev/null || chown root:root "$PRIV_APK" 2>/dev/null || true
+
+# Register package immediately
+pm install -r "$PRIV_APK" 2>/dev/null || true
+
+# Clean stale status log so fresh run is obvious
+rm -f /sdcard/NexusADBWatchdog/watchdog.status 2>/dev/null || true
 
 sync
 mount -o remount,ro /system 2>/dev/null || true

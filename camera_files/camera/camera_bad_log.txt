@@ -1,0 +1,548 @@
+--------- beginning of main
+W/com.join.ui.fragment.AnalyzeHumanFragment(  630): onEventTemperature: 接收到未知的位点值: 100
+I/NexusADBWatchdog( 1252): Log folder: /sdcard/NexusADBWatchdog ready=true
+W/com.join.ui.fragment.AnalyzeHumanFragment(  630): onEventTemperature: 接收到未知的位点值: 100
+I/NexusADBWatchdog( 1252): Log folder: /sdcard/NexusADBWatchdog ready=true
+W/com.join.ui.fragment.AnalyzeHumanFragment(  630): onEventTemperature: 接收到未知的位点值: 100
+W/AudioTrack(  489): AUDIO_OUTPUT_FLAG_FAST denied by client
+D/AudioHardwareTiny(  199): start_output_stream
+D/alsa_route(  199): route_info->sound_card 0, route_info->devices 0  
+D/alsa_route(  199): route_set_controls() set route 0
+E/CameraService(  199): no camera found before! check again...
+I/CameraService(  199): Loaded "RK29_ICS_CameraHal_Module" camera module
+W/AudioTrack(  489): AUDIO_OUTPUT_FLAG_FAST denied by client
+D/CameraHal(  199): createInstance(817): open xml file(/etc/cam_board.xml) success
+E/CameraHal(  199): cam_board.xml version(v0.0.0) != xml parser version(v0.13.0)
+D/CameraHal(  199): 
+D/CameraHal(  199): 
+D/CameraHal(  199): 
+D/CameraHal(  199):  Cam_board.xml Version Check: 
+D/CameraHal(  199):     /etc/cam_board.xml : v0.0xd.0
+D/CameraHal(  199):     CameraHal_board_xml_parser: v0.13.0
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(OV8825)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(0) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(MIPI) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(214): SensorPhy: MIPI  lane: 2  phyindex: 1  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(BuiltInSensor)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(3)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(20) rated current(80) vcm max(100)  step mode(13)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(Internal)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(1920x1080)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(0),max face num is (1)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(1)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(OV8858)
+D/CameraHal(  199): ParserSensorInfo(49): lensName(LG-9569A2)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(0) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(MIPI) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(214): SensorPhy: MIPI  lane: 2  phyindex: 1  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(BuiltInSensor)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(3)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(0) rated current(100) vcm max(100)  step mode(4)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(Internal)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(0x0)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(0),max face num is (1)! 
+D/CameraHal(  199): StartElementHandler(776): cproc support 1(contrast:1.100000,saturation:1.000000,hue:0.000000,brightness:0)! 
+D/CameraHal(  199): StartElementHandler(781): Gammaout support 0(mGamma:1.000000,mOffSet:0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(1)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(OV13850)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(0) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(MIPI) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(214): SensorPhy: MIPI  lane: 2  phyindex: 1  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(BuiltInSensor)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(3)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(20) rated current(80) vcm max(100)  step mode(13)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(Internal)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(0x0)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(0),max face num is (0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(1)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(OV5648)
+D/CameraHal(  199): ParserSensorInfo(49): lensName(CHT-842B-MD)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(0) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(MIPI) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(214): SensorPhy: MIPI  lane: 2  phyindex: 1  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(BuiltInSensor)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(3)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(0) rated current(100) vcm max(100)  step mode(4)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(Internal)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(0x0)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(0),max face num is (1)! 
+D/CameraHal(  199): StartElementHandler(776): cproc support 1(contrast:1.100000,saturation:1.000000,hue:0.000000,brightness:0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(1)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(GC2035)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(1) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(CCIR601) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(230): SensorPhy: CIF sensor_d0_to_cif_d: 2  cifnum: 0  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(NC)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(0)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(20) rated current(80) vcm max(100)  step mode(13)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(NC)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(1) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(1) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(800x600)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(0),max face num is (0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(0)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(GC0308)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1A)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(16777216)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB6) active(1) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(front) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(CCIR601) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(230): SensorPhy: CIF sensor_d0_to_cif_d: 2  cifnum: 0  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(NC)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(0)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(20) rated current(80) vcm max(100)  step mode(13)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(NC)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(1) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(1) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(800x600)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(0),max face num is (0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(0)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(GS8604)
+D/CameraHal(  199): ParserSensorInfo(49): lensName(9569A2)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(0) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(MIPI) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(214): SensorPhy: MIPI  lane: 2  phyindex: 1  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(BuiltInSensor)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(3)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(0) rated current(100) vcm max(100)  step mode(4)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(Internal)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(0x0)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(1),max face num is (1)! 
+D/CameraHal(  199): StartElementHandler(776): cproc support 0(contrast:1.100000,saturation:1.000000,hue:0.000000,brightness:0)! 
+D/CameraHal(  199): StartElementHandler(781): Gammaout support 0(mGamma:1.000000,mOffSet:0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(1)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(IMX214)
+D/CameraHal(  199): ParserSensorInfo(49): lensName(50013A7)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(24000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(0) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(MIPI) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(15) 
+D/CameraHal(  199): ParserSensorInfo(214): SensorPhy: MIPI  lane: 2  phyindex: 1  fmt: 0x2b
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(BuiltInSensor)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(3)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(0) rated current(100) vcm max(100)  step mode(4)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(Internal)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(1)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(1)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(0x0)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(1),max face num is (1)! 
+D/CameraHal(  199): StartElementHandler(776): cproc support 0(contrast:1.100000,saturation:1.000000,hue:0.000000,brightness:0)! 
+D/CameraHal(  199): StartElementHandler(781): Gammaout support 0(mGamma:1.000000,mOffSet:0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(10) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(10) support(1)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(10) support(1)
+D/CameraHal(  199): ParserSensorInfo(46): SensorName(TC358749XBG)
+D/CameraHal(  199): ParserSensorInfo(51): SensorDevID(CAMSYS_DEVID_SENSOR_1B)
+D/CameraHal(  199): ParserSensorInfo(62): SensorDevID(33554432)
+D/CameraHal(  199): ParserSensorInfo(64): SensorHostDevID(CAMSYS_DEVID_MARVIN)
+D/CameraHal(  199): ParserSensorInfo(79): Sensori2cBusNum(3)
+D/CameraHal(  199): ParserSensorInfo(82): SensorI2cAddrByte(2)
+D/CameraHal(  199): ParserSensorInfo(85): SensorI2cRate(100000)
+D/CameraHal(  199): ParserSensorInfo(88): SensorMclk(27000000)
+D/CameraHal(  199): ParserSensorInfo(91): SensorAvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(96): SensorDovdd(NC) min(18000000) max(18000000)
+D/CameraHal(  199): ParserSensorInfo(101): SensorDvdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserSensorInfo(106): SensorGpioPwdn(RK30_PIN2_PB7) active(0) 
+D/CameraHal(  199): ParserSensorInfo(110): SensorGpioRst(NC) active(0) 
+D/CameraHal(  199): ParserSensorInfo(114): SensorGpioPwen(RK30_PIN0_PC1) active(1) 
+D/CameraHal(  199): ParserSensorInfo(118): SensorFacing(back) 
+D/CameraHal(  199): ParserSensorInfo(127): SensorInterface(MIPI) 
+D/CameraHal(  199): ParserSensorInfo(140): SensorMirrorFlip(0) 
+D/CameraHal(  199): ParserSensorInfo(146): SensorOrientation(0) 
+D/CameraHal(  199): ParserSensorInfo(143): SensorPowerupSequence(1234) 
+D/CameraHal(  199): ParserSensorInfo(240): SensorFovParemeter fov_h(60.0)(60.000000) fov_v(60.0)(60.000000)  
+D/CameraHal(  199): ParserSensorInfo(243): SensorAWB_Frame_Skip fps(0) 
+D/CameraHal(  199): ParserSensorInfo(214): SensorPhy: MIPI  lane: 4  phyindex: 1  fmt: 0x1e
+D/CameraHal(  199): ParserVCMInfo(255): VCMDrvName(NC)
+D/CameraHal(  199): ParserVCMInfo(258): VCMName(NC)
+D/CameraHal(  199): ParserVCMInfo(261): VCMI2cBusNum(0)
+D/CameraHal(  199): ParserVCMInfo(264): VCMI2cAddrByte(0)
+D/CameraHal(  199): ParserVCMInfo(267): VCMI2cRate(0)
+D/CameraHal(  199): ParserVCMInfo(278): VCMVdd(NC) min(0) max(0)
+D/CameraHal(  199): ParserVCMInfo(270): VCMGpioPwdn(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(274): VCMGpioPower(NC) active(0) 
+D/CameraHal(  199): ParserVCMInfo(294): start current(0) rated current(100) vcm max(100)  step mode(4)  drv max(100) 
+D/CameraHal(  199): ParserFlashInfo(308): FlashName(NC)
+D/CameraHal(  199): ParserFlashInfo(311): FlashI2cBusNum(0)
+D/CameraHal(  199): ParserFlashInfo(314): FlashI2cAddrByte(0)
+D/CameraHal(  199): ParserFlashInfo(317): FlashI2cRate(0)
+D/CameraHal(  199): ParserFlashInfo(320): FlashTrigger(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(324): FlashEn(NC) active(0) 
+D/CameraHal(  199): ParserFlashInfo(331): FlashLuminance(0)
+D/CameraHal(  199): ParserFlashInfo(334): FlashColorTemp(0)
+D/CameraHal(  199): StartElementHandler(760): HDR(0)! 
+D/CameraHal(  199): StartElementHandler(764): ZSL(0)! 
+D/CameraHal(  199): StartElementHandler(768): zoom(1)! 
+D/CameraHal(  199): StartElementHandler(796): Continue_SnapShot(1)! 
+D/CameraHal(  199): StartElementHandler(799): InterpolationRes(0)! 
+D/CameraHal(  199): StartElementHandler(790): PreviewSize(1280x720)! 
+D/CameraHal(  199): StartElementHandler(786): face detect config(0),max face num is (0)! 
+D/CameraHal(  199): StartElementHandler(776): cproc support 0(contrast:1.100000,saturation:1.800000,hue:0.000000,brightness:0)! 
+D/CameraHal(  199): StartElementHandler(781): Gammaout support 0(mGamma:0.500000,mOffSet:0)! 
+D/CameraHal(  199): ParserDVConfig(601):  DV_QCIF(qcif) resolution(176x144) fps(30) support(0)
+D/CameraHal(  199): ParserDVConfig(613):  DV_QVGA(qvga) resolution(320x240) fps(30) support(0)
+D/CameraHal(  199): ParserDVConfig(625):  DV_CIF(cif) resolution(352x288) fps(30) support(0)
+D/CameraHal(  199): ParserDVConfig(637):  DV_VGA(480p) resolution(640x480) fps(30) support(0)
+D/CameraHal(  199): ParserDVConfig(649):  DV_480P(480p) resolution(720x480) fps(30) support(0)
+D/CameraHal(  199): ParserDVConfig(673):  DV_720P(720p) resolution(1280x720) fps(60) support(1)
+D/CameraHal(  199): ParserDVConfig(685):  DV_1080P(1080p) resolution(1920x1080) fps(60) support(1)
+D/CameraHal(  199): number of camdevice (9)
+D/CameraHal(  199): now DV size(7)
+E/CameraHal(  199): camera_get_number_of_cameras(690): board profiles cam num 9
+D/CameraHal(  199): read cam name from xml(/data/camera/media_profiles.xml)
+D/CameraHal(  199): videoname0="UVC Camera" index=9 facing=0 -->  
+D/CameraHal(  199): 
+D/CameraHal(  199): find camera count(1) cam1(UVC Camera) cam2()
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(OV8825) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(OV8858) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(OV13850) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(OV5648) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(GC2035) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(GC0308) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(GS8604) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(IMX214) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(697): load sensor name(TC358749XBG) connect 0
+E/CameraHal(  199): camera_get_number_of_cameras(750): Open /dev/video0 failed! strr: No such file or directory
+D/CameraHal(  199): judge the media profile xml fileexit = 0
+D/CameraHal(  199): camera_get_number_of_cameras(1114): camera_get_number_of_cameras(1114): Current board have 0 cameras attached.
+D/CameraHal(  199): camera_get_number_of_cameras(1117): meida_profiles_xml_control time (12463)us
+E/jjjNewCamera(  630): 相机异常
+W/AudioTrack(  489): AUDIO_OUTPUT_FLAG_FAST denied by client
+I/BaseChildrenActivity(  630): sendHandlerMessage: what=1, arg1=2, 指令=第2个玻片中位点
+W/BaseChildrenActivity(  630): handleMessage:开始发送第二个玻片中位点的指令
+I/BaseChildrenActivity(  630): sendCommand: windows=2, HEX=7E 20 0B 18 14 00 00 50 F0 14 00 00 1D 4C 14 E7
+W/com.join.ui.fragment.AnalyzeHumanFragment(  630): onEventTemperature: 接收到未知的位点值: 100
+I/NexusADBWatchdog( 1252): Log folder: /sdcard/NexusADBWatchdog ready=true
+I/----->  (  630): Humidity 接收window值 取对应相片: 2
+D/com.join.ui.fragment.AnalyzeHumanFragment(  630): onEventTemperature: 接收到位点值 2 (仓室2)，采样频率: 24 fps，拍摄间隔: 41 ms，延迟: 1650 ms，拍摄数量: 30
+W/com.join.ui.fragment.AnalyzeHumanFragment(  630): sendMessage: what=4, arge1=1, arg2=30, millis=1650, caller=dalvik.system.VMStack#getThreadStackTrace:-2, isDetecting=false, currentDetectingWindow=-1, positionQueue=[]
+D/alsa_route(  199): route_set_controls() set route 24
+D/AudioHardwareTiny(  199): close device
+D/jjjNewCamera(  630): handleMessage: 收到 case 4 拍摄消息，重置 threadClose，arg1=2025, arg2=30
+I/NexusADBWatchdog( 1252): Log folder: /sdcard/NexusADBWatchdog ready=true
+W/com.join.ui.fragment.AnalyzeHumanFragment(  630): onEventTemperature: 接收到未知的位点值: 100
+W/com.join.ui.fragment.AnalyzeHumanFragment(  630): onEventTemperature: 接收到未知的位点值: 100
+I/NexusADBWatchdog( 1252): Log folder: /sdcard/NexusADBWatchdog ready=true

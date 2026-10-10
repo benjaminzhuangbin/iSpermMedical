@@ -35,19 +35,57 @@ public final class TcpNetProbe {
     private TcpNetProbe() {
     }
 
+    public static boolean hasListeningPort(int port) {
+        Stats stats = collect(port);
+        return stats.listening;
+    }
+
     public static Stats collect(int port) {
         Stats stats = new Stats();
-        RootShell.Result r = RootShell.execSu("cat /proc/net/tcp", 8);
-        if (!r.ok() && r.stdout.isEmpty()) {
-            return stats;
+        String content = readFileContent("/proc/net/tcp");
+        if (content == null || content.isEmpty()) {
+            RootShell.Result r = RootShell.execSu("cat /proc/net/tcp", 5);
+            content = r.stdout;
         }
-        parse(r.stdout, port, stats);
-        // Also try tcp6 if present (rare for this product LAN)
-        RootShell.Result r6 = RootShell.execSu("cat /proc/net/tcp6 2>/dev/null", 5);
-        if (!r6.stdout.isEmpty()) {
-            parse(r6.stdout, port, stats);
+        if (content != null && !content.isEmpty()) {
+            parse(content, port, stats);
+        }
+
+        String content6 = readFileContent("/proc/net/tcp6");
+        if (content6 == null || content6.isEmpty()) {
+            RootShell.Result r6 = RootShell.execSu("cat /proc/net/tcp6 2>/dev/null", 3);
+            content6 = r6.stdout;
+        }
+        if (content6 != null && !content6.isEmpty()) {
+            parse(content6, port, stats);
         }
         return stats;
+    }
+
+    private static String readFileContent(String path) {
+        java.io.File file = new java.io.File(path);
+        if (!file.exists() || !file.canRead()) {
+            return null;
+        }
+        java.io.BufferedReader reader = null;
+        try {
+            reader = new java.io.BufferedReader(new java.io.FileReader(file));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            return sb.toString();
+        } catch (Throwable ignored) {
+            return null;
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
     }
 
     private static void parse(String text, int port, Stats stats) {

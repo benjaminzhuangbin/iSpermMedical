@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.nexus.adbwatchdog"
-    android:sharedUserId="android.uid.shell">
+    package="com.nexus.adbwatchdog">
 
     <!-- Network / storage / boot for Android 5.1.1 -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -49,6 +48,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.REBOOT" />
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <action android:name="android.net.ethernet.STATE_CHANGE" />
+                <action android:name="android.net.ethernet.ETHERNET_STATE_CHANGED" />
             </intent-filter>
         </receiver>
     </application>

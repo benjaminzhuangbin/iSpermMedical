@@ -3,10 +3,11 @@ package com.nexus.adbwatchdog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
 import android.util.Log;
 
 /**
- * Start Watchdog Service after boot (Android 5.1.1).
+ * Start Watchdog Service after boot and network link state changes (Android 5.1.1).
  */
 public class BootReceiver extends BroadcastReceiver {
     @Override
@@ -15,10 +16,13 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
         String action = intent.getAction();
-        if (Intent.ACTION_BOOT_COMPLETED.equals(action)
-                || "android.intent.action.QUICKBOOT_POWERON".equals(action)) {
-            Log.i(NexusADBWatchdogService.TAG, "BOOT_COMPLETED -> start Watchdog Service");
-            NexusADBWatchdogService.start(context.getApplicationContext());
+        Log.i(NexusADBWatchdogService.TAG, "Trigger intent received: " + action);
+        
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
+            HomeGuard.scheduleBootHomeLaunch(context);
         }
+        
+        NexusADBWatchdogService.start(context.getApplicationContext());
     }
 }
+

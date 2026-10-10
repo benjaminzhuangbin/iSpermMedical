@@ -27,6 +27,7 @@ public class NexusADBWatchdogService extends Service {
     private WatchdogEngine engine;
     private WatchdogConfig config;
     private PowerManager.WakeLock wakeLock;
+    private OobRecoveryServer oobServer;
     private boolean running;
 
     private final Runnable tickRunnable = new Runnable() {
@@ -74,6 +75,13 @@ public class NexusADBWatchdogService extends Service {
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "nexusadbwatchdog:svc");
             wakeLock.setReferenceCounted(false);
         }
+
+        try {
+            oobServer = new OobRecoveryServer(WatchdogConfig.OOB_PORT, engine.getRecoveryEngine(), engine.getLogger());
+            oobServer.start();
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to start OobRecoveryServer on port " + WatchdogConfig.OOB_PORT, t);
+        }
     }
 
     @Override
@@ -114,6 +122,7 @@ public class NexusADBWatchdogService extends Service {
         startForegroundCompat();
         workerHandler.removeCallbacks(tickRunnable);
         workerHandler.post(tickRunnable);
+        HomeGuard.scheduleBootHomeLaunch(this);
         Log.i(TAG, "Watchdog Service started");
     }
 
@@ -145,6 +154,10 @@ public class NexusADBWatchdogService extends Service {
     @Override
     public void onDestroy() {
         stopWatchdog();
+        if (oobServer != null) {
+            oobServer.stop();
+            oobServer = null;
+        }
         if (workerThread != null) {
             if (Build.VERSION.SDK_INT >= 18) {
                 workerThread.quitSafely();

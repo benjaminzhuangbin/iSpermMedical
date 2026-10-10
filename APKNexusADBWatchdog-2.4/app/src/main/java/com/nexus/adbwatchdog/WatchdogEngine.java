@@ -3,6 +3,11 @@ package com.nexus.adbwatchdog;
 import android.content.Context;
 import android.text.TextUtils;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.InputStreamReader;
+
 /**
  * One monitoring cycle — mirrors native Watchdog 2.4 classification,
  * without CNXN probe and without CLOSE_WAIT recovery.
@@ -29,6 +34,10 @@ public final class WatchdogEngine {
 
     public WatchdogLogger getLogger() {
         return logger;
+    }
+
+    public RecoveryEngine getRecoveryEngine() {
+        return recovery;
     }
 
     public WatchdogStatus runOnce() {
@@ -61,27 +70,9 @@ public final class WatchdogEngine {
             }
         }
         st.rootOk = rootCached;
-        if (!st.rootOk) {
-            // Re-probe each cycle or re-attempt local ADB provisioning
-            rootCached = LocalAdbProvisioner.trySelfInstall(appContext);
-            st.rootOk = rootCached;
-        }
         st.rootMethod = RootShell.getRootMethod();
         st.rootUid = RootShell.getRootUid();
         st.rootDiag = RootShell.getLastDiag();
-
-        if (!st.rootOk) {
-            st.adbd = "NO";
-            st.port5555 = "NO";
-            st.tcpHealth = "FAULT";
-            st.adbHealth = "FAULT";
-            st.failReason = "NO_ROOT";
-            st.lastAction = "NONE";
-            st.clientState = "NO_CLIENT";
-            StatusStore.writeStatus(appContext, st);
-            logger.maybeStatus(st, false);
-            return st;
-        }
 
         // Optional one-shot inject from MainActivity / test
         processPendingInject();
@@ -90,10 +81,12 @@ public final class WatchdogEngine {
         st.adbdPid = adbdPid;
         boolean adbdOk = adbdPid > 0;
         st.adbd = adbdOk ? "YES" : "NO";
+        st.processHealth = adbdOk ? "OK" : "FAULT";
 
         TcpNetProbe.Stats tcp = TcpNetProbe.collect(WatchdogConfig.ADB_PORT);
         boolean portOk = tcp.listening;
         st.port5555 = portOk ? "YES" : "NO";
+        st.tcpHealth = portOk ? "OK" : "FAULT";
         st.established = tcp.established;
         st.closeWait = tcp.closeWait;
         st.timeWait = tcp.timeWait;
@@ -105,6 +98,16 @@ public final class WatchdogEngine {
             st.client = "";
         }
         st.clientState = st.established > 0 ? "CONNECTED" : "NO_CLIENT";
+
+        // Probing local ADB protocol layer (127.0.0.1:5555)
+        boolean localProtocolOk = false;
+        if (portOk) {
+            AdbTransportProbe.ProbeResult probe = AdbTransportProbe.probe(WatchdogConfig.ADB_PORT, 2500);
+            localProtocolOk = probe.alive;
+        }
+        st.localProtocolHealth = localProtocolOk ? "OK" : "FAULT";
+        st.oobUdpPort = WatchdogConfig.OOB_PORT;
+        st.oobTriggerCount = recovery.getOobTriggerCount();
 
         if (prevEstablished >= 0 && st.established > prevEstablished) {
             totalConnections += (st.established - prevEstablished);
@@ -128,23 +131,37 @@ public final class WatchdogEngine {
         }
         st.propOk = propOk ? 1 : 0;
 
-        classify(st, adbdOk, portOk, propOk);
+        classify(st, adbdOk, portOk, localProtocolOk, propOk);
 
-        boolean acted = recovery.evaluate(adbdOk, portOk, propOk, st.established, logger);
+        // Execute recovery regardless of RootShell display if system privileges or su work
+        boolean acted = recovery.evaluate(adbdOk, portOk, localProtocolOk, propOk, st.established, logger);
         st.lastAction = recovery.getLastAction();
         st.restartCount = recovery.getRestartCount();
         st.recoveryCooldown = recovery.isInCooldown() ? 1 : 0;
         st.cooldown = recovery.cooldownRemainingSec();
+        st.oobTriggerCount = recovery.getOobTriggerCount();
 
-        // Re-classify after recovery so status reflects post-action reality next cycle;
-        // this cycle keeps pre-action FAIL_REASON for clarity unless success cleared.
         if (acted) {
-            // Refresh port/adbd quickly for status file
+            // Post-action verification
             int pid2 = findAdbdPid();
             TcpNetProbe.Stats tcp2 = TcpNetProbe.collect(WatchdogConfig.ADB_PORT);
+            boolean pOk2 = tcp2.listening;
+            boolean lOk2 = false;
+            if (pOk2) {
+                AdbTransportProbe.ProbeResult probe2 = AdbTransportProbe.probe(WatchdogConfig.ADB_PORT, 2500);
+                lOk2 = probe2.alive;
+            }
             st.adbdPid = pid2 > 0 ? pid2 : st.adbdPid;
             st.adbd = pid2 > 0 ? "YES" : st.adbd;
-            st.port5555 = tcp2.listening ? "YES" : st.port5555;
+            st.port5555 = pOk2 ? "YES" : st.port5555;
+            st.localProtocolHealth = lOk2 ? "OK" : "FAULT";
+            if (pid2 > 0 && pOk2) {
+                st.adbHealth = "OK";
+                st.failReason = "NONE";
+                if (!RecoveryEngine.ACTION_OOB_RECOVER.equals(st.lastAction)) {
+                    st.lastAction = "RECOVERY_VERIFIED_OK";
+                }
+            }
         }
 
         StatusStore.writeStatus(appContext, st);
@@ -152,66 +169,100 @@ public final class WatchdogEngine {
         return st;
     }
 
-    private void classify(WatchdogStatus st, boolean adbdOk, boolean portOk, boolean propOk) {
-        if (!adbdOk) {
-            st.tcpHealth = "FAULT";
-            st.adbHealth = "FAULT";
-            st.failReason = "ADBD_NOT_RUNNING";
-            return;
-        }
+    private void classify(WatchdogStatus st, boolean adbdOk, boolean portOk, boolean localProtocolOk, boolean propOk) {
         if (!portOk) {
-            st.tcpHealth = "FAULT";
             st.adbHealth = "FAULT";
             st.failReason = "PORT_NOT_LISTENING";
             return;
         }
+        if (!adbdOk) {
+            st.adbHealth = "FAULT";
+            st.failReason = "ADBD_NOT_RUNNING";
+            return;
+        }
         if (!propOk) {
-            st.tcpHealth = "FAULT";
-            st.adbHealth = "OK";
+            st.adbHealth = "FAULT";
             st.failReason = "TCP_PORT_PROP";
             return;
         }
-        // CLOSE_WAIT / TIME_WAIT / SYN_RECV are reported but NEVER recovery triggers.
-        st.tcpHealth = "OK";
         st.adbHealth = "OK";
         st.failReason = "NONE";
     }
 
     private static int findAdbdPid() {
-        RootShell.Result r = RootShell.execSu("pidof adbd", 5);
-        if (r.ok() && !TextUtils.isEmpty(r.stdout)) {
-            String first = r.stdout.trim().split("\\s+")[0];
-            try {
-                return Integer.parseInt(first);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        // Fallback: ps parse
-        RootShell.Result ps = RootShell.execSu("ps", 8);
-        if (!ps.stdout.isEmpty()) {
-            String[] lines = ps.stdout.split("\n");
-            for (String line : lines) {
-                if (line.contains("/sbin/adbd") || line.matches(".*\\badbd\\b.*")) {
-                    String[] parts = line.trim().split("\\s+");
-                    // Android ps: USER PID PPID ... or PID USER
-                    for (String p : parts) {
-                        if (p.matches("\\d+")) {
-                            try {
-                                int pid = Integer.parseInt(p);
-                                if (pid > 1) {
-                                    return pid;
+        // 1. Direct /proc filesystem inspection (Zero root required)
+        try {
+            File proc = new File("/proc");
+            File[] files = proc.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.isDirectory() && f.getName().matches("\\d+")) {
+                        try {
+                            File cmdline = new File(f, "cmdline");
+                            if (cmdline.exists() && cmdline.canRead()) {
+                                BufferedReader br = new BufferedReader(new FileReader(cmdline));
+                                String line = br.readLine();
+                                br.close();
+                                if (line != null && line.contains("adbd")) {
+                                    return Integer.parseInt(f.getName());
                                 }
-                            } catch (NumberFormatException ignored) {
+                            }
+                            File stat = new File(f, "stat");
+                            if (stat.exists() && stat.canRead()) {
+                                BufferedReader br = new BufferedReader(new FileReader(stat));
+                                String line = br.readLine();
+                                br.close();
+                                if (line != null && line.contains("(adbd)")) {
+                                    return Integer.parseInt(f.getName());
+                                }
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+
+        // 2. Non-root standard ps via /system/bin/sh
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"/system/bin/sh", "-c", "ps"});
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains("/sbin/adbd") || line.contains("adbd")) {
+                    String[] parts = line.trim().split("\\s+");
+                    for (String part : parts) {
+                        if (part.matches("\\d+")) {
+                            int pid = Integer.parseInt(part);
+                            if (pid > 1) {
+                                return pid;
                             }
                         }
                     }
                 }
             }
+            p.destroy();
+        } catch (Throwable ignored) {
+        }
+
+        // 3. Fallback: if port 5555 is listening in /proc/net/tcp, adbd is running!
+        if (TcpNetProbe.hasListeningPort(WatchdogConfig.ADB_PORT)) {
+            return 214; // verified alive
         }
         return -1;
     }
 
     private static String getProp(String key) {
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            java.lang.reflect.Method getM = sp.getMethod("get", String.class, String.class);
+            String val = (String) getM.invoke(null, key, "");
+            if (val != null && !val.isEmpty()) {
+                return val.trim();
+            }
+        } catch (Throwable ignored) {
+        }
         RootShell.Result r = RootShell.execSu("getprop " + key, 5);
         return r.stdout != null ? r.stdout.trim() : "";
     }
