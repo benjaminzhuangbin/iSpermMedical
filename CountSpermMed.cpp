@@ -8318,16 +8318,56 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	int nStatus = 1;
 
 	// V1.0.3-H 版本
-	// 
-	// ==================== 精子运动灵敏度可调阈值 ====================
-	#define SPERM_VCL_MIN           2.5      // [可调] 曲线速度最小阈值(um/s)，代表头部左右晃动的剧烈程度，过滤剔除微弱摆动精子，低于此值直接判为D级不动 (原代码是2.5)，pdTraceMotion[nNumTemp].dVCL的门限
-	#define SPERM_VAP_C_MIN       0.0      // [新增可调] C级非前向运动的VAP门限(um/s)，把左右扭动抹平，得到一条向前的平滑轨迹，代表头部向前推进的快慢，过滤剔除微弱移动精子，低于此值不计入C级，直接判为D级不动
-	#define SPERM_VAP_B_MIN       5.0      // [可调] B级慢速前向运动的VAP门限(um/s)，原代码是5.0
-	#define SPERM_VAP_A_MIN       25.0    // [可调] A级快速前向运动的VAP门限(um/s)，原代码是25.0
-	#define SPERM_DSL_MIN           1.5      // [新增可调] 最小直线净位移(um)，原地抖动位移极小，直接视为死精，也是一种像素抖动去噪点
-	#define SPERM_SAMPLE_NOISE_GATE 3.0    // [新增可调] 样本级噪声门限(%)：全片活动率若低于此百分比，全判定为0活力，清零噪点
-	// ==============================================================
+	// ==============================================================================
+	// CASA 精子动力学与抗噪参数体系 (WHO-6 标准 & 工业级抗噪统一控制台)
+	// ==============================================================================
+
+	// ---------------- 第一层：WHO-6 标准速度与分级门限 ----------------
+	#define SPERM_VCL_MIN           2.5     // [um/s] 曲线速度绝对底限：代表头部左右晃动的剧烈程度，过滤剔除微弱摆动精子, 低于此值绝非生物运动，判为D级
+	// ABCD速度分级的标准 VAP: 把左右扭动抹平，得到一条向前的平滑轨迹，代表头部向前推进的快慢，
+	#define SPERM_VAP_C_MIN         0.0     // [um/s] C级(NP非前向)最低平滑路径速度
+	#define SPERM_VAP_B_MIN         5.0     // [um/s] B级(慢速前向PR)平滑路径速度门限
+	#define SPERM_VAP_A_MIN         25.0    // [um/s] A级(快速前向PR)平滑路径速度门限
 	// 实施过程中，还遵循了WHO‑6 的 CASA 实现惯例：主速度使用 VAP，同时用 STR (VSL/VAP) 必须>= 0.6，过滤非前向高速摆动精子
+	#define SPERM_STR_PR_MIN        0.60    // 前向性(STR=VSL/VAP)门限：WHO要求PR前向运动必须具有前向性
+    // B级精子前向性判断 （STR (VSL/VAP) 必须>= 0.6）
+
+	// ---------------- 第二层：单个精子/轨迹级防噪门限 (消除像素抖动与闪烁散斑) ----------------
+	// 0.极度离散闪烁噪点识别 (散斑闪烁特征：折返角极大且线性度极低且无推进)（MAD高、LIN极低且无大直线速度）
+	// 防闪烁噪点判据（dMAD > 85.0, dLIN < 0.25, dVSL < 15.0）
+	#define SPERM_NOISE_MAD_MAX     85.0    // [度] 异常角位移门限(死精闪烁均值93.8°，活精均值55.5°)
+	#define SPERM_NOISE_LIN_MIN     0.25    // 异常低线性度
+	#define SPERM_NOISE_VSL_MAX     15.0    // [um/s] 异常低直线速度(真实A/B活精直线速度通常>25)
+	
+	// 1.短轨迹(8~14帧)浮沉活精 vs 闪烁噪点
+	// 通道①：高速/浮沉活跃精子（爆发速度明显，死精抖动绝不可能达到 VCL>=15 或 VAP>=10）
+	#define SPERM_SHORT_VCL_A       15.0    // [um/s] 短轨迹高速爆发A级VCL门限
+	#define SPERM_SHORT_VAP_A       10.0    // [um/s] 短轨迹高速爆发A级VAP门限
+	#define SPERM_SHORT_DSL_A       2.0     // [um] 短轨迹高速通道基础位移(防单帧闪烁跳变)
+    // 通道②：中速/NP弱活精子（速度达标 + 具备DSL >1.8 um 真实位移，死精短时抖动位移通常 <1.2 um）
+	#define SPERM_SHORT_DSL_NORMAL  1.8     // [um] 短轨迹中速通道真实位移门限
+
+	// 2.长轨迹 (>= 15 帧)
+	// 针对普通活精 vs 原地晃动死精：
+	// 死精子即使抖动 20~25 帧，限制其净位移 dDSL 
+	#define SPERM_DSL_MIN           1.5     // [um] 长轨迹最小直线净位移(死精布朗运动/晃动位移通常<1.0)
+	#define SPERM_STR_LONG_MIN      0.05    // 长轨迹最小前向性(允许原地打转C级活精，但排除无序杂乱噪点)
+
+
+	// ---------------- 第三层：样本级全局抗噪熔断 (防止全死精样本因大面积闪烁误报) ----------------
+    // 熔断一
+	// 全死精图即使有噪点突破，直线精子数也极低(nNumSL <= 3)，且直线平均速度极低(< 15 um/s)
+        #define SPERM_SAMPLE_MIN_SL     3       // 样本最小直线运动精子数(死精闪烁全图通常<=2，活精达38+)
+	#define SPERM_SAMPLE_SL_VSL_MIN 15.0    // [um/s] 样本直线运动有效均速阈值
+    //熔断二
+	// 条件1：整片活动比例极低 (< 3.0%) 
+	// 条件2：整片无任何直线运动精子 (nNumSL == 0) 且总活动数 < 15 个（典型散斑闪烁特征）【这行直接用数字】
+	// 条件3：全片检测到的活动目标平均直线推进速度极低 (dAveVSL < 12.0 um/s)
+        #define SPERM_SAMPLE_NOISE_GATE 3.0     // [%] 样本活力绝对门限：全片若<3%通常为假活力底噪，直接清零
+	#define SPERM_SAMPLE_AVE_VSL_MIN 12.0   // [um/s] 全片活动精子平均直线速度绝对下限
+	// ==============================================================================
+
+
 
 	struct spermProperty 
 	{
@@ -8445,7 +8485,8 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 		// nImgFileNum: 本次检测采集的总图像帧数
 		// nPosNum: 一颗精子被连续跟踪到的有效轨迹帧数
 		// if (nPosNum <= 10 || nPosNum <= nImgFileNum/3)
-        if (nPosNum <= 8 || nPosNum <= nImgFileNum/4)    // 当 `nPosNum` 小于等于 8 **或者** `nPosNum` 小于等于图片总数的 1/4 时，条件成立 ; 总共拍 30 帧：30 / 4 = 7.5，限制主要由绝对下限 8 帧 起作用，nPosNum必须大于等于9
+		// 当 `nPosNum` 小于等于 8 **或者** `nPosNum` 小于等于图片总数的 1/4 时，条件成立 ; 总共拍 30 帧：30 / 4 = 7.5，限制主要由绝对下限 8 帧 起作用，nPosNum必须大于等于9
+        if (nPosNum <= 8 || nPosNum <= nImgFileNum/4)   
 		{
 			pnTraceType[i] = 0;//微动或不动
 		}
@@ -8643,7 +8684,7 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 			//    pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
 			//    pdTraceMotion[nNumTemp].dDSL  >= SPERM_DSL_MIN)
 
-pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumTemp].dVCL+ EPSINON);
+          pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumTemp].dVCL+ EPSINON);
 
 			// ==============================================================================
 			// CASA 工业级【双阶梯动态门限 - 灵敏度增强版】
@@ -8652,48 +8693,62 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 			// ==============================================================================
 			bool bIsValidMotile = false;
 			// V1.0.3-H 版本【闪烁光点伪活力，通用噪点防御】
-			// 闪烁噪点判据：原地无规则散斑闪烁跳跃，无有效推进（MAD高、LIN极低且无大直线速度）
-           bool bIsErraticNoise = (pdTraceMotion[nNumTemp].dMAD > 85.0 && 
-                        pdTraceMotion[nNumTemp].dLIN < 0.25 && 
-                        pdTraceMotion[nNumTemp].dVSL < 15);
+			// 0.极度离散闪烁噪点识别 (散斑闪烁特征：折返角极大且线性度极低且无推进)（MAD高、LIN极低且无大直线速度）
+			// 防闪烁噪点判据（dMAD > 85.0, dLIN < 0.25, dVSL < 15.0）
+			// #define SPERM_NOISE_MAD_MAX     85.0    // [度] 异常角位移门限(死精闪烁均值93.8°，活精均值55.5°)
+	        // #define SPERM_NOISE_LIN_MIN     0.25    // 异常低线性度
+	        // #define SPERM_NOISE_VSL_MAX     15.0    // [um/s] 异常低直线速度(真实A/B活精直线速度通常>25)
+           bool bIsErraticNoise = (pdTraceMotion[nNumTemp].dMAD > SPERM_NOISE_MAD_MAX && 
+                        pdTraceMotion[nNumTemp].dLIN < SPERM_NOISE_LIN_MIN && 
+                        pdTraceMotion[nNumTemp].dVSL < SPERM_NOISE_VSL_MAX);
 
 			if (!bIsErraticNoise)
 			{
 				if (nPosNum < 15)
 				{
-				// 【阶梯1：短轨迹 (8 ~ 14 帧)】
+				// 1.短轨迹 (8 ~ 14 帧)
 				// 通道①：高速/浮沉活跃精子（爆发速度明显，死精抖动绝不可能达到 VCL>=15 或 VAP>=10）
-				// 通道②：中速/NP弱活精子（速度达标 + 具备 >1.8 um 真实位移，死精短时抖动位移通常 <1.2 um）
 			    // 针对闪烁噪点：闪烁噪点的 VCL 虽高，但往往只有 1~2 次大幅跳变，或者摆动极不协调
 				// 真实高速 A 级精子必有连续位移 (dDSL >= 2.0)，且 VAP/VCL 具有协调性
-				if (pdTraceMotion[nNumTemp].dVCL >= 15.0 && 
-				    pdTraceMotion[nNumTemp].dVAP >= 10.0 && 
-				    pdTraceMotion[nNumTemp].dDSL  >= 2.0)  // 增加基础位移保护，拦截单点闪烁伪高速
+				// 	#define SPERM_SHORT_VCL_A       15.0    // [um/s] 短轨迹高速爆发A级VCL门限
+	            // #define SPERM_SHORT_VAP_A       10.0    // [um/s] 短轨迹高速爆发A级VAP门限
+	            // #define SPERM_SHORT_DSL_A       2.0     // [um] 短轨迹高速通道基础位移(防单帧闪烁跳变)
+				if (pdTraceMotion[nNumTemp].dVCL >= SPERM_SHORT_VCL_A && 
+				    pdTraceMotion[nNumTemp].dVAP >= SPERM_SHORT_VAP_A && 
+				    pdTraceMotion[nNumTemp].dDSL  >= SPERM_SHORT_DSL_A)  // 增加基础位移保护，拦截单点闪烁伪高速
 				{
 					bIsValidMotile = true;
 				}
+				// 通道②：中速/NP弱活精子（速度达标 + 具备DSL >1.8 um 真实位移，死精短时抖动位移通常 <1.2 um）
+				// #define SPERM_VCL_MIN           2.5     // [um/s] 曲线速度绝对底限：代表头部左右晃动的剧烈程度，过滤剔除微弱摆动精子, 低于此值绝非生物运动，判为D级
+				// #define SPERM_VAP_C_MIN         0.0     // [um/s] C级(NP非前向)最低平滑路径速度
+				// #define SPERM_SHORT_DSL_NORMAL  1.8     // [um] 短轨迹中速通道真实位移门限
 				else if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
 				         pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
-				         pdTraceMotion[nNumTemp].dDSL  >= 1.8)
+				         pdTraceMotion[nNumTemp].dDSL  >= SPERM_SHORT_DSL_NORMAL)
 				{
 					bIsValidMotile = true;
 				}
 			}
 			else
 			{
-				// 【阶梯2：长轨迹 (>= 15 帧)】
+				// 2.长轨迹 (>= 15 帧)
 				// 针对普通活精 vs 原地晃动死精：
 				// 死精子即使抖动 20~25 帧，限制其净位移 dDSL 
+			    // #define SPERM_VCL_MIN           2.5     // [um/s] 曲线速度绝对底限：代表头部左右晃动的剧烈程度，过滤剔除微弱摆动精子, 低于此值绝非生物运动，判为D级
+				// #define SPERM_VAP_C_MIN         0.0     // [um/s] C级(NP非前向)最低平滑路径速度
+				// #define SPERM_DSL_MIN                 1.5      // [um] 长轨迹最小直线净位移(死精布朗运动/晃动位移通常<1.0)
+				// #define SPERM_STR_LONG_MIN      0.05    // 长轨迹最小前向性(允许原地打转C级活精，但排除无序杂乱噪点)
 				if (pdTraceMotion[nNumTemp].dVCL >= SPERM_VCL_MIN && 
 				    pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_C_MIN && 
 				    pdTraceMotion[nNumTemp].dDSL  >= SPERM_DSL_MIN &&
-					pdTraceMotion[nNumTemp].dSTR >= 0.05)
+					pdTraceMotion[nNumTemp].dSTR >= SPERM_STR_LONG_MIN)
 				{
 					bIsValidMotile = true;
 				}
 			}
 
-			// 只有通过阶梯校验的，才计入活动精子并累加运动特征
+			// 只有通过短轨迹和长轨迹双校验的，才计入活动精子并累加运动特征
 			if (bIsValidMotile)
 			{
 				nNumActiveTrace++; // 统计真正的活动轨迹数量
@@ -8744,7 +8799,10 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 				{
 					nNumClassA++;
 				} 
-				else if (pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= 0.6)
+				//  B级精子前向性判断 (STR (VSL/VAP) 必须>= 0.6)
+				// #define SPERM_VAP_B_MIN         5.0     // [um/s] B级(慢速前向PR)平滑路径速度门限
+				// #define SPERM_STR_PR_MIN        0.60    // 前向性(STR=VSL/VAP)门限：WHO要求PR前向运动必须具有前向性
+				else if (pdTraceMotion[nNumTemp].dVAP >= SPERM_VAP_B_MIN && pdTraceMotion[nNumTemp].dSTR >= SPERM_STR_PR_MIN)
 				{
 					nNumClassB++;
 				}
@@ -8780,13 +8838,15 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 	// 1. 真实活动精子数（由动力学达标的 A+B+C 轨迹决定）
 	int nNumABCTemp = nNumClassA + nNumClassB + nNumClassC;
 	
-	// 全死精闪烁样本全局熔断保护：
+	// 样本级全局抗噪熔断一：
 	// 全死精图即使有噪点突破，直线精子数也极低(nNumSL <= 3)，且直线平均速度极低(< 15 um/s)
 	// 活精图直线数有 38 个、速度近 40 um/s，完全不可能触发
 	if (nNumABCTemp > 0)
 	{
 		double dCurrentMeanVSL = dataOut->dAveVSL / (double)nNumABCTemp;
-		if (dataOut->nNumSL <= 3 && dCurrentMeanVSL < 15.0)
+		// #define SPERM_SAMPLE_MIN_SL     3       // 样本最小直线运动精子数(死精闪烁全图通常<=2，活精达38+)
+		// #define SPERM_SAMPLE_SL_VSL_MIN 15.0    // [um/s] 样本直线运动有效均速阈值
+		if (dataOut->nNumSL <= SPERM_SAMPLE_MIN_SL && dCurrentMeanVSL < SPERM_SAMPLE_SL_VSL_MIN)
 		{
 			nNumClassA = 0;
 			nNumClassB = 0;
@@ -8842,13 +8902,15 @@ pdTraceMotion[nNumTemp].dWOB = pdTraceMotion[nNumTemp].dVAP/(pdTraceMotion[nNumT
 	dataOut->dActiveSpermRatio = dataOut->dRatioClassPR + dataOut->dRatioClassNP; // 总活力 PR+NP
 
 
-	// V1.0.3-H 工业级样本防抖：
-		// 条件1：活动比例极低 (< 3.0%) SPERM_SAMPLE_NOISE_GATE
+	// V1.0.3-H 样本级全局抗噪熔断二：
+		// 条件1：整片活动比例极低 (< 3.0%) 
 		// 条件2：整片无任何直线运动精子 (nNumSL == 0) 且总活动数 < 15 个（典型散斑闪烁特征）
 		// 条件3：全片检测到的活动目标平均直线推进速度极低 (dAveVSL < 12.0 um/s)
+		// #define SPERM_SAMPLE_NOISE_GATE 3.0     // [%] 样本活力绝对门限：全片若<3%通常为假活力底噪，直接清零
+    	// #define SPERM_SAMPLE_AVE_VSL_MIN 12.0   // [um/s] 全片活动精子平均直线速度绝对下限
 		bool bIsGhostMotionSample = (dataOut->dActiveSpermRatio < SPERM_SAMPLE_NOISE_GATE) ||
 									(dataOut->nNumSL == 0 && dataOut->nActiveSpermNum < 15) ||
-									(dataOut->nActiveSpermNum > 0 && (dataOut->dAveVSL / (nNumActiveTrace + EPSINON)) < 12.0);
+									(dataOut->nActiveSpermNum > 0 && (dataOut->dAveVSL / (nNumActiveTrace + EPSINON)) < SPERM_SAMPLE_AVE_VSL_MIN);
 
     if (bIsGhostMotionSample)
     {
