@@ -77,6 +77,24 @@ public class QcImportDialog {
             return;
         }
 
+        // =========================================================================
+        // 【核心前置核验】：在显示可导入视频列表前，先对检测到的 USB 介质执行设备一对一专属绑定核验
+        // =========================================================================
+        File sampleVideoFolder = availableVideoFolders.get(0);
+        QcDeviceBindingVerifier.BindingCheckResult bindingResult = 
+                QcDeviceBindingVerifier.verifyBinding(activity, sampleVideoFolder);
+
+        if (!bindingResult.isValid) {
+            Log.e(TAG, "前置设备绑定核验未通过: " + bindingResult.errorMessage);
+            new AlertDialog.Builder(activity)
+                    .setTitle("【未授权介质】USB 专属绑定拦截")
+                    .setMessage(bindingResult.errorMessage)
+                    .setPositiveButton("确定", null)
+                    .setCancelable(false)
+                    .show();
+            return;
+        }
+
         // 2. 构建视频选择列表
         final String[] folderNames = new String[availableVideoFolders.size()];
         final File internalBase = new File(QcConstants.DEFAULT_INTERNAL_QC_PATH);
@@ -94,7 +112,7 @@ public class QcImportDialog {
 
         // 3. 弹出单选列表对话框
         new AlertDialog.Builder(activity)
-                .setTitle("选择要载入的 QC 质控视频")
+                .setTitle("选择要载入的 QC 质控视频 (已授权本仪器)")
                 .setItems(folderNames, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, final int which) {
@@ -114,14 +132,14 @@ public class QcImportDialog {
                                                  final OnImportCompletedListener listener) {
         final ProgressDialog progressDialog = new ProgressDialog(activity);
         progressDialog.setTitle("正在载入 QC 视频");
-        progressDialog.setMessage("正在验证授权证书与数字签名...");
+        progressDialog.setMessage("正在验证专属绑定授权与数字签名...");
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         progressDialog.setMax(100);
         progressDialog.setCancelable(false);
         progressDialog.setCanceledOnTouchOutside(false);
         progressDialog.show();
 
-        QcVideoImporter.importVideoAsync(videoFolder, null, new QcVideoImporter.ImportCallback() {
+        QcVideoImporter.importVideoAsync(activity, videoFolder, null, new QcVideoImporter.ImportCallback() {
             @Override
             public void onProgress(String statusMessage, int progressPercent) {
                 if (activity.isFinishing()) return;
@@ -171,7 +189,7 @@ public class QcImportDialog {
 
                 new AlertDialog.Builder(activity)
                         .setTitle("❌ 载入失败")
-                        .setMessage("视频未能导入成功：\n" + errorMessage)
+                        .setMessage(errorMessage)
                         .setPositiveButton("确定", null)
                         .show();
             }
@@ -210,29 +228,26 @@ public class QcImportDialog {
             }
         }
 
-        // 排序：按 Video-1, Video-2 自然顺序排列
+        // 按照文件名自然排序 (Video-1, Video-2 ...)
         Collections.sort(result, new Comparator<File>() {
             @Override
-            public int compare(File o1, File o2) {
-                return o1.getName().compareToIgnoreCase(o2.getName());
+            public int compare(File f1, File f2) {
+                return f1.getName().compareToIgnoreCase(f2.getName());
             }
         });
 
         return result;
     }
 
-    /**
-     * 收集目录下所有 Video- 开头的文件夹
-     */
-    private static void collectVideoSubfolders(File qcFolder, List<File> list) {
-        File[] files = qcFolder.listFiles();
-        if (files == null) return;
-        for (File f : files) {
-            if (f.isDirectory()) {
-                String name = f.getName().toLowerCase();
+    private static void collectVideoSubfolders(File qcFolder, List<File> outList) {
+        File[] subs = qcFolder.listFiles();
+        if (subs == null) return;
+        for (File sub : subs) {
+            if (sub.isDirectory()) {
+                String name = sub.getName().toLowerCase();
                 if (name.startsWith("video-") || name.startsWith("video_")) {
-                    if (!list.contains(f)) {
-                        list.add(f);
+                    if (!outList.contains(sub)) {
+                        outList.add(sub);
                     }
                 }
             }

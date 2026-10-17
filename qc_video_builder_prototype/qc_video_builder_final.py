@@ -178,7 +178,7 @@ def init_or_load_keys(key_dir: Path, algo: str = "rsa2048"):
     return private_key, pub_path, pub_b64, master_secret, master_b64
 
 
-def build_qc_usb_package(source_dir: Path, output_dir: Path, key_dir: Path, algo: str = "rsa2048"):
+def build_qc_usb_package(source_dir: Path, output_dir: Path, key_dir: Path, algo: str = "rsa2048", device_id: str = None, usb_hardware_id: str = None):
     """
     核心制作流程：
     1. 检查并读取所有 Video-1, Video-2...
@@ -355,10 +355,32 @@ def build_qc_usb_package(source_dir: Path, output_dir: Path, key_dir: Path, algo
     print(f"  ★ U盘拷贝目录:   {qc_root_dir}")
     print(f"  ★ 签名私钥位置: {key_dir} (严禁复制给客户或拷入U盘！)")
     print(f"  ★ Android配置:  {key_dir / 'Android_App_Keys_Config.txt'}")
+
+    # 如果在制作视频时指定了绑定的设备ID和USB硬件ID，同时生成 device_binding.lic
+    if device_id and usb_hardware_id:
+        binding_info = {
+            "format": "ISPERM-BIND-V1",
+            "device_id": device_id.strip(),
+            "usb_hardware_id": usb_hardware_id.strip(),
+            "created_utc": datetime.now(timezone.utc).isoformat(),
+            "issuer": "iSperm Medical Authority"
+        }
+        b_payload = canonical_json(binding_info)
+        b_sig = private_key.sign(b_payload, padding.PKCS1v15(), hashes.SHA256())
+        b_lic = {
+            "format": "ISPERM-BIND-V1",
+            "binding_info": binding_info,
+            "signature_algorithm": "SHA256withRSA",
+            "signature_base64": base64.b64encode(b_sig).decode("ascii")
+        }
+        (output_dir / "device_binding.lic").write_bytes(canonical_json(b_lic))
+        (qc_root_dir / "device_binding.lic").write_bytes(canonical_json(b_lic))
+        print(f"  ★ 专属绑定授权: device_binding.lic 已生成 (绑定仪器: {device_id})")
+
     print(f"======================================================================")
     print(f"\n【下一步操作】：")
     print(f"1. 直接将文件夹 [ {qc_root_dir.name} ] 完整复制到 U 盘根目录下。")
-    print(f"2. 确保 U 盘根目录下结构为：U盘盘符:\\QC-Video\\Video-1, Video-2...")
+    print(f"2. 若已生成专属绑定凭据 device_binding.lic，请将其同样保存在 U 盘根目录。")
     print(f"3. 插入精子分析仪 USB 端口即可在 APP 中导入。")
 
 
@@ -367,8 +389,11 @@ def main():
         description="iSperm Medical QC Video USB 制作与加密工具 (最终正式版)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""示例用法:
+  # 通用制作 (后续可通过 qc_device_binder.py 为任意仪器生成专属绑定凭据):
   python qc_video_builder_final.py --source "D:\\QC-Video" --output "E:\\"
-  python qc_video_builder_final.py --source "D:\\QC-Video" --output "D:\\QC-Output" --key-dir "C:\\QC-Keys"
+
+  # 一步到位：制作视频同时绑定指定精子分析仪:
+  python qc_video_builder_final.py --source "D:\\QC-Video" --output "E:\\" --device-id "ISPERM-DEV-3A8F91B2-C4D5E6F7" --usb-id "USB-HW-090C-1000-AA0401270001"
         """
     )
     parser.add_argument("--source", required=True, help="包含 Video-1、Video-2 等子文件夹的源目录")
@@ -376,6 +401,8 @@ def main():
     parser.add_argument("--key-dir", default=None, help="公司签名密钥与主密钥持久化存放目录（默认保存在脚本同级 keys 目录）")
     parser.add_argument("--algo", default="rsa2048", choices=["rsa2048", "ed25519"],
                         help="签名算法：默认 rsa2048 (Android 原生零依赖极佳兼容 API 1~35) 或 ed25519")
+    parser.add_argument("--device-id", default=None, help="可选：直接生成绑定到指定精子分析仪编号的 device_binding.lic")
+    parser.add_argument("--usb-id", default=None, help="可选：指定的 U 盘芯片硬件序列号")
     args = parser.parse_args()
 
     source_path = Path(args.source)
@@ -386,7 +413,7 @@ def main():
         key_path = Path(__file__).resolve().parent / "company_keys"
 
     try:
-        build_qc_usb_package(source_path, output_path, key_path, args.algo)
+        build_qc_usb_package(source_path, output_path, key_path, args.algo, args.device_id, args.usb_id)
     except Exception as e:
         print(f"\n[错误] 制作失败: {e}", file=sys.stderr)
         import traceback

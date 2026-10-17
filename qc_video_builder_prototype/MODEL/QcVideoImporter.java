@@ -1,5 +1,6 @@
 package com.isperm.qc;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Base64;
@@ -39,13 +40,18 @@ import javax.crypto.spec.SecretKeySpec;
  * 
  * 核心流程：
  * 1. 自动定位或接收用户选中的 QC-Video/Video-1 文件夹。
- * 2. 验证 manifest.dat 与 license.dat 的公司数字签名 (SHA256withRSA)，防止仿冒与非法U盘。
- * 3. 使用主控 APP 内置的 APP_MASTER_KEY 解封 AES 内容密钥 (Key Envelope Unwrap)。
- * 4. 采用 AES-256-GCM 工业级认证解密 Video-1.qcv 密文包。
- * 5. 将解密出来的 30 张 JPEG 图像精准解压释放到 /mnt/internal_sd/QC/Video-1/000.jpg ~ 029.jpg。
+ * 2. 【核心新增】：执行 USB 介质与当前精子分析仪的一对一专属绑定授权核验 (device_binding.lic)。
+ *    - 验证公司官方授权签名
+ *    - 匹配仪器设备唯一编号 (device_id)
+ *    - 匹配 USB 物理主控硬件序列号 (usb_hardware_id，防普通 U 盘复制)
+ *    - 验证失败时安全拒绝，阻止视频列表与后续解密。
+ * 3. 验证 manifest.dat 与 license.dat 的公司数字签名 (SHA256withRSA)，防止假视频。
+ * 4. 使用主控 APP 内置的 APP_MASTER_KEY 解封 AES 内容密钥 (Key Envelope Unwrap)。
+ * 5. 采用 AES-256-GCM 工业级认证解密 Video-1.qcv 密文包。
+ * 6. 将解密出来的 30 张 JPEG 图像精准解压释放到 /mnt/internal_sd/QC/Video-1/000.jpg ~ 029.jpg。
  * 
  * 兼容性：
- * - 纯 Android 原生 SDK (API 22+ 完美兼容)，无需额外第三方依赖。
+ * - 纯 Android 原生 SDK (API 22+ 完美兼容 Android 5.1.1)，无需额外第三方依赖。
  */
 public class QcVideoImporter {
 
@@ -90,19 +96,20 @@ public class QcVideoImporter {
     }
 
     /**
-     * 异步导入指定的视频文件夹（如 U盘中的 QC-Video/Video-1）
+     * 异步导入指定的视频文件夹（带 Context 上下文，支持一对一设备硬件绑定核验）
      * 
+     * @param context       Android 上下文
      * @param videoFolder   用户选择的源文件夹（如 /mnt/usb_storage/QC-Video/Video-1）
      * @param targetRootDir 目标根目录（传入 null 则默认 /mnt/internal_sd/QC）
      * @param callback      回调监听器
      */
-    public static void importVideoAsync(final File videoFolder, final File targetRootDir, final ImportCallback callback) {
+    public static void importVideoAsync(final Context context, final File videoFolder, final File targetRootDir, final ImportCallback callback) {
         EXECUTOR.execute(new Runnable() {
             @Override
             public void run() {
                 try {
-                    postProgress(callback, "正在准备读取视频包...", 10);
-                    ImportResult result = importVideoSync(videoFolder, targetRootDir, callback);
+                    postProgress(callback, "正在校验 USB 介质与仪器专属绑定授权...", 15);
+                    ImportResult result = importVideoSync(context, videoFolder, targetRootDir, callback);
                     postSuccess(callback, result);
                 } catch (final Exception e) {
                     Log.e(TAG, "QC 视频导入失败: " + e.getMessage(), e);
@@ -113,15 +120,30 @@ public class QcVideoImporter {
     }
 
     /**
+     * 兼容旧版调用的异步接口（不带 Context）
+     */
+    public static void importVideoAsync(final File videoFolder, final File targetRootDir, final ImportCallback callback) {
+        importVideoAsync(null, videoFolder, targetRootDir, callback);
+    }
+
+    /**
+     * 兼容旧版调用的同步接口（不带 Context）
+     */
+    public static ImportResult importVideoSync(File videoFolder, File targetRootDir, ImportCallback callback) throws Exception {
+        return importVideoSync(null, videoFolder, targetRootDir, callback);
+    }
+
+    /**
      * 同步导入指定的视频文件夹
      * 
+     * @param context       Android 上下文 (用于提取设备与 USB 物理硬件指纹)
      * @param videoFolder   包含加密视频的文件夹 (例如 .../QC-Video/Video-1)
      * @param targetRootDir 写入的目标根目录 (例如 /mnt/internal_sd/QC)
      * @param callback      可选进度回调
      * @return ImportResult 导入成功信息
      * @throws Exception 校验不通过或解密失败异常
      */
-    public static ImportResult importVideoSync(File videoFolder, File targetRootDir, ImportCallback callback) throws Exception {
+    public static ImportResult importVideoSync(Context context, File videoFolder, File targetRootDir, ImportCallback callback) throws Exception {
         long startTime = System.currentTimeMillis();
 
         if (videoFolder == null || !videoFolder.exists() || !videoFolder.isDirectory()) {
@@ -130,6 +152,17 @@ public class QcVideoImporter {
 
         String videoName = videoFolder.getName();
         Log.i(TAG, "开始导入 QC 视频包: " + videoFolder.getAbsolutePath());
+
+        // =========================================================================
+        // 【核心新增安全检查】：USB 介质与当前仪器一对一专属绑定核验
+        // =========================================================================
+        postProgress(callback, "正在核对设备一对一绑定授权...", 20);
+        QcDeviceBindingVerifier.BindingCheckResult bindingResult = QcDeviceBindingVerifier.verifyBinding(context, videoFolder);
+        if (!bindingResult.isValid) {
+            Log.e(TAG, "【授权拒绝】设备绑定校验未通过: " + bindingResult.errorMessage);
+            throw new SecurityException(bindingResult.errorMessage);
+        }
+        Log.i(TAG, "✓ 设备绑定核验通过！仪器: " + bindingResult.boundDeviceId + "，介质: " + bindingResult.boundUsbHardwareId);
 
         // 1. 查找加密文件 (.qcv)
         File qcvFile = findQcvFile(videoFolder);
@@ -156,7 +189,7 @@ public class QcVideoImporter {
             throw new SecurityException("缺少授权证书或清单文件 (manifest.dat / license.dat)，拒绝导入！");
         }
 
-        postProgress(callback, "正在验证公司官方数字签名与合法授权...", 30);
+        postProgress(callback, "正在验证视频官方数字签名与内容完整性...", 35);
 
         // 3. 校验官方数字签名 (防止任何用户自行制作假U盘)
         byte[] manifestBytes = readFileBytes(manifestFile);
@@ -167,11 +200,11 @@ public class QcVideoImporter {
 
         boolean signatureValid = verifyCompanySignature(manifestBytes, signatureBytes);
         if (!signatureValid) {
-            throw new SecurityException("【安全拦截】QC 授权数字签名验证失败！该 U 盘未经官方授权或文件已被非法篡改。");
+            throw new SecurityException("【安全拦截】QC 视频数字签名验证失败！该视频文件已被非法篡改或非官方签发。");
         }
-        Log.i(TAG, "数字签名验证通过！合法授权 U 盘。");
+        Log.i(TAG, "视频数字签名验证通过！");
 
-        postProgress(callback, "正在解封安全密钥信封...", 50);
+        postProgress(callback, "正在解封安全密钥信封...", 55);
 
         // 4. 解析清单并提取该视频的密钥信封 (Key Envelope)
         String manifestJsonStr = new String(manifestBytes, StandardCharsets.UTF_8);

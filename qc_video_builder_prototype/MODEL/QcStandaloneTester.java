@@ -12,8 +12,11 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -24,24 +27,26 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * iSperm Medical QC Video 独立测试验证器 (PC/单元测试通用版)
- * =======================================================
+ * iSperm Medical QC Video 独立测试验证器 (PC/单元测试通用版，支持设备一对一绑定核验)
+ * ==============================================================================
  * 无需 Android 运行环境，可使用标准 JDK 8+ 直接编译运行，
- * 用于验证 U 盘上的 QC-Video/Video-1 能否在电脑上完成授权验证与解密提取。
+ * 验证 U 盘上的 QC-Video 目录及 device_binding.lic 设备专属绑定授权与视频解密提取。
  * 
  * 编译运行：
  *   javac -d . QcConstants.java QcStandaloneTester.java
- *   java com.isperm.qc.QcStandaloneTester /path/to/QC-Video/Video-1 /tmp/output
+ *   java com.isperm.qc.QcStandaloneTester /path/to/QC-Video/Video-1 /tmp/output [EXPECTED_DEVICE_ID] [EXPECTED_USB_HW_ID]
  */
 public class QcStandaloneTester {
 
     public static void main(String[] args) {
         System.out.println("=================================================");
-        System.out.println("  iSperm Medical QC Video 解密测试验证器 (Java)");
+        System.out.println("  iSperm Medical QC Video 专属绑定测试验证器 (Java)");
         System.out.println("=================================================");
 
         String videoFolderPath = args.length > 0 ? args[0] : "/tmp/test_usb_disk/QC-Video/Video-1";
         String targetOutputPath = args.length > 1 ? args[1] : "/tmp/qc_test_output";
+        String testDeviceId = args.length > 2 ? args[2] : null;      // 可指定测试仪器编号
+        String testUsbHardwareId = args.length > 3 ? args[3] : null; // 可指定测试 USB 硬件序列号
 
         File videoFolder = new File(videoFolderPath);
         File targetDir = new File(targetOutputPath);
@@ -53,7 +58,59 @@ public class QcStandaloneTester {
 
         try {
             long t0 = System.currentTimeMillis();
-            System.out.println("[1/4] 读取视频包与证书: " + videoFolder.getAbsolutePath());
+
+            // =========================================================================
+            // 阶段 0：核查 device_binding.lic 设备专属一对一绑定授权
+            // =========================================================================
+            System.out.println("[0/4] 正在检测并核验专属设备绑定授权 (device_binding.lic)...");
+            File bindingLicFile = findBindingLicense(videoFolder);
+            if (bindingLicFile == null) {
+                System.err.println("❌ 拦截：未在 U 盘中找到 device_binding.lic 授权凭据！");
+                System.err.println("此 QC USB DISK 未授权用于本仪器，请使用分配给本仪器的 QC USB DISK。");
+                System.exit(10);
+            }
+
+            String bindingLicStr = new String(readFile(bindingLicFile), StandardCharsets.UTF_8);
+            String devIdInLic = extractJsonString(bindingLicStr, "device_id");
+            String usbHwIdInLic = extractJsonString(bindingLicStr, "usb_hardware_id");
+            String bindSigB64 = extractJsonString(bindingLicStr, "signature_base64");
+
+            // 验证公司 RSA 签名
+            String bindingPayloadPart = extractSubJsonObject(bindingLicStr, "binding_info");
+            byte[] canonicalPayload = canonicalizeJsonString(bindingPayloadPart);
+            byte[] bindSigBytes = Base64.getDecoder().decode(bindSigB64);
+
+            byte[] pubKeyDer = Base64.getDecoder().decode(QcConstants.COMPANY_PUBLIC_KEY_B64.replaceAll("\\s+", ""));
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(pubKeyDer);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            PublicKey pubKey = kf.generatePublic(keySpec);
+
+            Signature bindVerifier = Signature.getInstance("SHA256withRSA");
+            bindVerifier.initVerify(pubKey);
+            bindVerifier.update(canonicalPayload);
+            if (!bindVerifier.verify(bindSigBytes)) {
+                System.err.println("❌ 拦截：device_binding.lic 官方数字签名无效或已被篡改！");
+                System.exit(11);
+            }
+            System.out.println("  ✓ 绑定授权官方数字签名合法！");
+            System.out.println("  ✓ 授权目标仪器: [" + devIdInLic + "]");
+            System.out.println("  ✓ 授权绑定介质: [" + usbHwIdInLic + "]");
+
+            // 若外部传入了测试仪器编号，则进行严格比对
+            if (testDeviceId != null && !testDeviceId.trim().equalsIgnoreCase(devIdInLic.trim())) {
+                System.err.println("❌ 拦截：设备身份不匹配！此 QC USB DISK 未授权用于当前仪器 [" + testDeviceId + "]！");
+                System.exit(12);
+            }
+            if (testUsbHardwareId != null && !testUsbHardwareId.trim().equalsIgnoreCase(usbHwIdInLic.trim())) {
+                System.err.println("❌ 拦截：USB 介质硬件身份不匹配！检测到普通克隆复制 U 盘！");
+                System.exit(13);
+            }
+            System.out.println("  ✓ 仪器与 USB 介质一对一专属绑定匹配成功！");
+
+            // =========================================================================
+            // 阶段 1：查找视频文件与视频清单
+            // =========================================================================
+            System.out.println("\n[1/4] 读取视频包与证书: " + videoFolder.getAbsolutePath());
 
             // 1. 查找 QCV 文件
             File qcvFile = null;
@@ -82,17 +139,12 @@ public class QcStandaloneTester {
                 }
             }
 
-            // 3. 验证签名
-            System.out.println("[2/4] 正在验证公司 RSA-2048 数字签名...");
+            // 3. 验证视频数字签名
+            System.out.println("[2/4] 正在验证视频 RSA-2048 数字签名...");
             byte[] manifestBytes = readFile(manifestFile);
             String licenseStr = new String(readFile(licenseFile), StandardCharsets.UTF_8);
             String sigB64 = extractJsonString(licenseStr, "signature_base64");
             byte[] sigBytes = Base64.getDecoder().decode(sigB64);
-
-            byte[] pubKeyDer = Base64.getDecoder().decode(QcConstants.COMPANY_PUBLIC_KEY_B64.replaceAll("\\s+", ""));
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(pubKeyDer);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
-            PublicKey pubKey = kf.generatePublic(keySpec);
 
             Signature verifier = Signature.getInstance("SHA256withRSA");
             verifier.initVerify(pubKey);
@@ -100,10 +152,10 @@ public class QcStandaloneTester {
             boolean valid = verifier.verify(sigBytes);
 
             if (!valid) {
-                System.err.println("❌ 签名验证失败！该 U 盘未经官方授权或文件损坏。");
+                System.err.println("❌ 视频签名验证失败！该视频未经官方授权或文件损坏。");
                 System.exit(2);
             }
-            System.out.println("  ✓ 官方数字签名验证通过！合法授权 U 盘。");
+            System.out.println("  ✓ 视频官方数字签名验证通过！合法授权视频。");
 
             // 4. 解析信封并拆封 AES 内容密钥
             System.out.println("[3/4] 拆封 AES 内容密钥信封并解密视频流...");
@@ -169,7 +221,7 @@ public class QcStandaloneTester {
 
             long elapsed = System.currentTimeMillis() - t0;
             System.out.println("=================================================");
-            System.out.println("  ★ 解密测试全部成功！");
+            System.out.println("  ★ 验证与解密测试全部成功！");
             System.out.println("  ★ 恢复图像数量: " + count + " 张 (000.jpg ~ 029.jpg)");
             System.out.println("  ★ 输出目录:     " + outVideoDir.getAbsolutePath());
             System.out.println("  ★ 总计耗时:     " + elapsed + " 毫秒");
@@ -182,6 +234,25 @@ public class QcStandaloneTester {
         }
     }
 
+    private static File findBindingLicense(File dir) {
+        File cur = dir;
+        for (int i = 0; i < 4 && cur != null; i++) {
+            File lic = new File(cur, "device_binding.lic");
+            if (lic.exists() && lic.isFile()) {
+                return lic;
+            }
+            File qcSub = new File(cur, "QC-Video");
+            if (qcSub.exists() && qcSub.isDirectory()) {
+                File licInQc = new File(qcSub, "device_binding.lic");
+                if (licInQc.exists() && licInQc.isFile()) {
+                    return licInQc;
+                }
+            }
+            cur = cur.getParentFile();
+        }
+        return null;
+    }
+
     private static String extractJsonString(String json, String key) {
         Pattern pattern = Pattern.compile("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
         Matcher matcher = pattern.matcher(json);
@@ -189,6 +260,45 @@ public class QcStandaloneTester {
             return matcher.group(1);
         }
         throw new IllegalArgumentException("JSON 中未找到键: " + key);
+    }
+
+    private static String extractSubJsonObject(String json, String key) {
+        int idx = json.indexOf("\"" + key + "\"");
+        if (idx < 0) return "{}";
+        int braceStart = json.indexOf('{', idx);
+        if (braceStart < 0) return "{}";
+        int depth = 0;
+        for (int i = braceStart; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '{') depth++;
+            else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return json.substring(braceStart, i + 1);
+                }
+            }
+        }
+        return "{}";
+    }
+
+    private static byte[] canonicalizeJsonString(String rawJson) {
+        // 简化解析出 key-value 并按字典序排序
+        List<String> entries = new ArrayList<>();
+        Pattern p = Pattern.compile("\"([^\"]+)\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false)");
+        Matcher m = p.matcher(rawJson);
+        while (m.find()) {
+            String k = m.group(1);
+            String v = m.group(2);
+            entries.add("\"" + k + "\":" + v);
+        }
+        Collections.sort(entries);
+        StringBuilder sb = new StringBuilder("{");
+        for (int i = 0; i < entries.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(entries.get(i));
+        }
+        sb.append("}");
+        return sb.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     private static byte[] readFile(File file) throws IOException {
