@@ -5,13 +5,14 @@ import { CASAAnalysisDashboard } from './components/CASAAnalysisDashboard';
 import { MorphologyLab } from './components/MorphologyLab';
 import { NexusWatchdogConsole } from './components/NexusWatchdogConsole';
 import { AlgorithmSpecsView } from './components/AlgorithmSpecsView';
+import { CrossMapViewer } from './components/CrossMapViewer';
 import { ClinicalReportModal } from './components/ClinicalReportModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DEFAULT_CASA_INPUT, generateInitialSpermCells, computeCASAMetrics } from './lib/casaEngine';
 import { SpermCell, AlgSqaMedDataIn, AlgSqaMedDataOut } from './types';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'microscope' | 'dashboard' | 'morphology' | 'watchdog' | 'docs'>('microscope');
+  const [activeTab, setActiveTab] = useState<'microscope' | 'dashboard' | 'morphology' | 'crossmap' | 'watchdog' | 'docs'>('crossmap');
   const [input, setInput] = useState<AlgSqaMedDataIn>(DEFAULT_CASA_INPUT);
   const [cells, setCells] = useState<SpermCell[]>(() => generateInitialSpermCells(60, 800, 520, input.dRatioImg, 'Human'));
   const [selectedCellId, setSelectedCellId] = useState<number | null>(null);
@@ -68,6 +69,10 @@ export function App() {
 
         {activeTab === 'morphology' && (
           <MorphologyLab metrics={metrics} input={input} cells={cells} />
+        )}
+
+        {activeTab === 'crossmap' && (
+          <CrossMapViewer />
         )}
 
         {activeTab === 'watchdog' && (

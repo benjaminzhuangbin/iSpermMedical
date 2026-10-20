@@ -8,13 +8,14 @@ import {
   Sliders, 
   BookOpen, 
   CheckCircle2, 
-  AlertTriangle 
+  AlertTriangle,
+  Crosshair 
 } from 'lucide-react';
 import { AlgSqaMedDataOut } from '../types';
 
 interface NavbarProps {
-  activeTab: 'microscope' | 'dashboard' | 'morphology' | 'watchdog' | 'docs';
-  setActiveTab: (tab: 'microscope' | 'dashboard' | 'morphology' | 'watchdog' | 'docs') => void;
+  activeTab: 'microscope' | 'dashboard' | 'morphology' | 'crossmap' | 'watchdog' | 'docs';
+  setActiveTab: (tab: 'microscope' | 'dashboard' | 'morphology' | 'crossmap' | 'watchdog' | 'docs') => void;
   metrics: AlgSqaMedDataOut;
   onOpenReport: () => void;
   onOpenSettings: () => void;
@@ -84,6 +85,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Dna className="w-4 h-4" />
               Morphology Lab
+            </button>
+            <button
+              id="nav-tab-crossmap"
+              onClick={() => setActiveTab('crossmap')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'crossmap'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <Crosshair className="w-4 h-4 text-red-400" />
+              AllSpermInfor 十字图
             </button>
             <button
               id="nav-tab-watchdog"
@@ -172,6 +185,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             Morphology
+          </button>
+          <button
+            onClick={() => setActiveTab('crossmap')}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium ${
+              activeTab === 'crossmap' ? 'bg-red-600 text-white' : 'text-slate-400 bg-slate-800/50'
+            }`}
+          >
+            十字图 (1280x720)
           </button>
           <button
             onClick={() => setActiveTab('watchdog')}
