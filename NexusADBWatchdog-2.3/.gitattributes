@@ -1,5 +1,0 @@
-# Windows batch MUST store CRLF in git blobs (GitHub ZIP serves raw blobs).
-# -text disables EOL conversion so CRLF is preserved.
-*.bat -text
-*.cmd -text
-*.ps1 text eol=crlf
