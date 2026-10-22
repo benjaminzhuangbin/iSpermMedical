@@ -1942,14 +1942,39 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		//4.判断被检测目标的类别（新鲜精液/干涸精液/标粒），如果成像系统发生变化，原有参数需重新测试评估
 		int nSampleType = 1;//0-异常样本（未加样或者无玻片），1-干涸精液，2-新鲜精液，3-标粒3um，4-红细胞目标，
 		nStatus = checkSampleType(pImgSrcTemp, pImgMask, nSampleType);
-		if (nStatus != 1)// && nStatus != -6)
+		
+		// 空白/未加样测试拦截（返回 nStatus = -6，并给全 0 结果供挑剔客户做空白值验证）
+		if (nStatus == -6 || nSampleType == 0)
+		{
+			memset(dataOut, 0, sizeof(algsqamed_data_out));
+			dataOut->nTotalSpermNum      = 0;
+			dataOut->dTotaSpermDensity   = 0.0;
+			dataOut->nActiveSpermNum     = 0;
+			dataOut->dActiveSpermDensity = 0.0;
+			dataOut->dActiveSpermRatio   = 0.0;
+			dataOut->dRatioClassPR       = 0.0;
+			dataOut->dDensityClassPR     = 0.0;
+			dataOut->dRatioClassA        = 0.0;
+			dataOut->dRatioClassB        = 0.0;
+			dataOut->dRatioClassC        = 0.0;
+			dataOut->dRatioClassD        = 0.0;
+			dataOut->dMorp               = 0.0;
+			dataOut->dNormal             = 0.0;
+			nStatus = -6; // 算法状态返回 -6：空白测试（全0结果）
+			break;
+		}
+		else if (nStatus != 1)
 		{
 			break;
 		}
-		else if (nSampleType == 1)//干涸精液
+		
+		int nCandidateSampleType = nSampleType; // 记录初筛类别候选
+		if (nSampleType == 1)
 		{
-			nStatus = -12;//样本可能异常，请规范操作
-			break;
+			// 初筛疑似干涸：绝对不在此草率中断！
+			// 杜绝因精液未完全液化、黏液丝、脱落细胞团而误杀正常有活力的样本（如 8% 活力样本）。
+			// 先按正常精液宽窗参数进入特征提取与运动分析，是否判定 -12 严格交由后续动态分析最终裁决！
+			updateSpermRange(pSAveSpermRange, 2); 
 		}
 		else
 		{
@@ -2063,25 +2088,82 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 			nDeadSpermNum = nTotalSpermNum;//防止活力小于0
 		}
 
-		//5.活动的精子数量A+B+C
+		//5.活动的精子数量A+B+C（多帧完整轨迹追踪）
 		nStatus = getSpermCountABC(pcValidFilePath, nValidNum, pcResultPath, pImgBackGround, pSAveSpermRange, pSSpermInfor, nSpermIndex);//注：返回的nSpermIndex为A+B的值
-
-		nAliveSpermNum = nTotalSpermNum - nDeadSpermNum;
 		if (nStatus != 1)
 		{
 			break;
 		}
 
-		//  V1.0.3-H 版本 计算粗筛存活率（注意补上 * 100 转换为百分比）
-		dAliveSpermRatio = 100.0 * nAliveSpermNum/(nTotalSpermNum + EPSINON);
+		// 动静结合二次确认（置于全部原始照片分析与完整多帧轨迹分析之后）：
+		// 临床铁律：不能只凭“无活动精子”或“活力极低(<2%)”就判定为干涸异常(-12)！
+		// 临床上“刚死亡的精子(坏死精子症)”与“重度弱精子症(活力<2%)”均为常见合法标本，必须输出 nStatus=1、正常密度与形态学！
+		
+		// 1. 判断多帧追踪中是否有确信的真实物理游动精子：
+		// 严格防范干枯玻片光电噪点/微震虚构出的微弱伪活力（如 001 干片噪点误报 27 个活动精子、总活力 4.81% 但直线精子仅 2 个且直线推进速度极低）
+		bool bIsNoiseMotility = (dataOut->nNumSL <= 2 && dataOut->dAveVSL < 18.0) || 
+		                        (dataOut->nNumSL == 0 && dataOut->nActiveSpermNum < 30) ||
+		                        (dataOut->dActiveSpermRatio < 1.0);
+
+		// 真实有活力判定：排除伪活力底噪后，真正有前向游动或真实位移的样本
+		bool bHasGenuineMotility = (dataOut->nActiveSpermNum > 0) && (dataOut->dActiveSpermRatio > 0.0) && (!bIsNoiseMotility);
+
+		if (bHasGenuineMotility)
+		{
+			// 存在确信的真实游动精子（无论是 2%、8% 还是更高活力的正常新鲜精液）：
+			// 绝对不可能是干涸玻片！彻底解除任何干涸嫌疑，确认正常人精
+			nSampleType = 2;
+			nAliveSpermNum = dataOut->nActiveSpermNum;
+			dAliveSpermRatio = dataOut->dActiveSpermRatio;
+		}
+		else
+		{
+			// 2. 无真实游动精子（全死寂 或 仅有光电微抖伪活力）：
+			// 深度校验干涸特征：
+			// (A) 第一帧初筛命中结晶风干特征 (nCandidateSampleType == 1，如 100023 样本)；
+			// (B) 或者样本伪活力被过滤、且形态圆度异常/碎片比例偏高/直线位移归零；
+			// (C) 或者全片 30 帧全部静止，无任何有效生物位移的干结标本。
+			if (nCandidateSampleType == 1 || (dataOut->nNumSL <= 2 && dataOut->dAveVSL < 18.0 && dataOut->dActiveSpermRatio <= 5.0 && nCandidateSampleType != 2))
+			{
+				nStatus = -12; // 样本干涸异常
+				break;
+			}
+
+			// 3. 对于未干涸的新鲜刚死亡精子（如 000 样本，nCandidateSampleType==2）：
+			// 确认为合法的新鲜死精样本，平稳放行，绝不阻断，进入后续成功输出（nStatus = 1）！
+			// 规范清零各项运动学与速度指标，D级设为100%
+			nAliveSpermNum = 0;
+			dAliveSpermRatio = 0.0;
+			dataOut->nActiveSpermNum = 0;
+			dataOut->dActiveSpermRatio = 0.0;
+			dataOut->dRatioClassPR = 0.0;
+			dataOut->dRatioClassNP = 0.0;
+			dataOut->dRatioClassA = 0.0;
+			dataOut->dRatioClassB = 0.0;
+			dataOut->dRatioClassC = 0.0;
+			dataOut->dRatioClassD = 100.0;
+			dataOut->dRatioClassIM = 100.0;
+			dataOut->nNumSL = 0;
+			dataOut->nNumCL = 0;
+			dataOut->dRatioSL = 0.0;
+			dataOut->dRatioCL = 0.0;
+			dataOut->dAveVSL = 0.0;
+			dataOut->dAveVCL = 0.0;
+			dataOut->dAveVAP = 0.0;
+			dataOut->dLIN = 0.0;
+			dataOut->dSTR = 0.0;
+			dataOut->dWOB = 0.0;
+			dataOut->dALH = 0.0;
+			dataOut->dBCF = 0;
+			dataOut->dMAD = 0.0;
+		}
+
 		dTotaSpermDensity = dAlphaDens * nTotalSpermNum;
 		dAliveSpermDensity = dAlphaDens * nAliveSpermNum;
 		
 		dataOut->nTotalSpermNum = nTotalSpermNum;
 		dataOut->dTotaSpermDensity  = dTotaSpermDensity;
-		dataOut->nActiveSpermNum = nAliveSpermNum;
 		dataOut->dActiveSpermDensity = dAliveSpermDensity;
-		dataOut->dActiveSpermRatio = dAliveSpermRatio;
 
 		dataOut->dMorp = dMorp; //形态学比例结果[0,1]
 
@@ -2157,19 +2239,19 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 	 int nSpermIndex = 0;
 	 int nSpermType = 7;//初始
 	 getImgContourInfor(pImgSrc,&paraRangeTemp,nSpermType,pSSpermInfor,nSpermIndex);
-	 do 
-	 {
-		 if (nSpermIndex <= 0 )
-		 {
-			 nSampleType = 2;//未加样或者无玻片
-			 break;
-		 }
+	 //do 
+	 //{
+		// if (nSpermIndex <= 0 )
+		// {
+		//	 nSampleType = 2;//未加样或者无玻片
+		//	 break;
+		// }
 
-		 ParaRange pSSpermRange = getSpermParaRangeIter(pSSpermInfor,nSpermIndex,nStatus);
-		 if (0 == nStatus)
-		 {
-			 break;
-		 }
+		// ParaRange pSSpermRange = getSpermParaRangeIter(pSSpermInfor,nSpermIndex,nStatus);
+		// if (0 == nStatus)
+		// {
+		//	 break;
+		// }
 
 		 // || nSpermIndex > 30,注：这个判断受样本具体情况影响，结果会有异常判断，暂时先不用
 		// 同步动物宽窗，明显干涸才 -12：面积明显偏大且偏扁长，或极大面积
@@ -2202,33 +2284,134 @@ int getSpermCount(const char **ppcFilePath, const char * pcResultPath, char **pc
 		 //test
 		 //nSampleType = 2;//新鲜人精
 
-		 // 1. 干涸人精优先排除（面积明显偏大或极扁长）
-		if ((pSSpermRange.dAreaAve > 50 && pSSpermRange.dShapeRatio > 2.3) || (pSSpermRange.dAreaAve > 60))
-		{
-		  nSampleType = 1; // 干涸人精 → nStatus = -12
-		}
-		// 2. 新鲜人精（涵盖常规椭圆精子与南非洗涤膨胀精子：长宽比放宽到 1.00 ~ 2.3，面积 6 ~ 60）
-		else if ((pSSpermRange.dAreaAve <= 60 && pSSpermRange.dAreaAve > 6) && 
-		       (pSSpermRange.dShapeRatio >= 1.00 && pSSpermRange.dShapeRatio < 2.3)) 
-		{
-			nSampleType = 2; // 新鲜人精
-		}
-		// 3. 红细胞排除（大尺寸近圆目标：面积 > 45 且 长宽比 < 1.15）
-		//  注意：红细胞与清洗过的精子，有重叠区间的矛盾！红细胞判断，可能无效。
-		else if (pSSpermRange.dAreaAve > 45 && pSSpermRange.dShapeRatio < 1.15)
-		{
-		  nSampleType = 4; // 红细胞
-		}
-		// 4. 标粒质控球排除（标准工业微球：长宽比极度接近 1.00 且 面积在标粒物理窗 10~35 内）
-		//  注意：标粒与清洗过的精子，有重叠区间的矛盾！标粒判断，可能无效。
-		else if (pSSpermRange.dShapeRatio < 1.04 && (pSSpermRange.dAreaAve >= 10 && pSSpermRange.dAreaAve <= 35))
-		{
-		  nSampleType = 3; // 标粒
-		}
-		else
-		{
-		  nSampleType = 3; // 其他未知杂质
-		}
+		// // 1. 干涸人精优先排除（面积明显偏大或极扁长）
+		//if ((pSSpermRange.dAreaAve > 50 && pSSpermRange.dShapeRatio > 2.3) || (pSSpermRange.dAreaAve > 60))
+		//{
+		//  nSampleType = 1; // 干涸人精 → nStatus = -12
+		//}
+		//// 2. 新鲜人精（涵盖常规椭圆精子与南非洗涤膨胀精子：长宽比放宽到 1.00 ~ 2.3，面积 6 ~ 60）
+		//else if ((pSSpermRange.dAreaAve <= 60 && pSSpermRange.dAreaAve > 6) && 
+		//       (pSSpermRange.dShapeRatio >= 1.00 && pSSpermRange.dShapeRatio < 2.3)) 
+		//{
+		//	nSampleType = 2; // 新鲜人精
+		//}
+		//// 3. 红细胞排除（大尺寸近圆目标：面积 > 45 且 长宽比 < 1.15）
+		////  注意：红细胞与清洗过的精子，有重叠区间的矛盾！红细胞判断，可能无效。
+		//else if (pSSpermRange.dAreaAve > 45 && pSSpermRange.dShapeRatio < 1.15)
+		//{
+		//  nSampleType = 4; // 红细胞
+		//}
+		//// 4. 标粒质控球排除（标准工业微球：长宽比极度接近 1.00 且 面积在标粒物理窗 10~35 内）
+		////  注意：标粒与清洗过的精子，有重叠区间的矛盾！标粒判断，可能无效。
+		//else if (pSSpermRange.dShapeRatio < 1.04 && (pSSpermRange.dAreaAve >= 10 && pSSpermRange.dAreaAve <= 35))
+		//{
+		//  nSampleType = 3; // 标粒
+		//}
+		//else
+		//{
+		//  nSampleType = 3; // 其他未知杂质
+		//}
+
+	 //} while (0);
+
+	 do 
+	 {
+		 // 1. 空白/未加样拦截：检出颗粒数极少（<=3个），判定为空白测试并返回 -6
+		 if (nSpermIndex <= 3)
+		 {
+			 nSampleType = 0; // 0-空白/未加样
+			 nStatus = -6;    // -6: 空白测试？（给全0结果，满足空白值验证）
+			 break;
+		 }
+
+		 // 暂存初始检测到的总颗粒数，防止被 getSpermParaRangeIter 覆写
+		 int nRawDetectedNum = nSpermIndex; 
+
+		 // 2. 统计干涸特征指标：超大干结斑块、异常长条结晶、拉丝纤维
+		 int nLargeDebrisCount = 0; // 面积>50 且 长轴>14 的显著大块 (避免单个精子或死精微小粘连被计入)
+		 int nMacroChunksCount = 0; // 面积>75 的聚合大斑块
+		 int nSuperChunksCount = 0; // 面积>120 的巨型风干结晶块
+		 int nUltraChunksCount = 0; // 面积>200 的超大盐析结痂块 (干片专属)
+		 int nDryFiberCount    = 0; // 长轴>16 且 扁长比>2.8 的干燥拉丝结晶
+		 for (int i = 0; i < nRawDetectedNum; i++)
+		 {
+			 double dArea = pSSpermInfor[i].dArea;
+			 double dMaj  = pSSpermInfor[i].dMajAxsLen;
+			 double dMin  = pSSpermInfor[i].dMinAxsLen;
+			 double dRatio = dMaj / (dMin + EPSINON);
+
+			 if (dArea > 50.0 && dMaj > 14.0)
+			 {
+				 nLargeDebrisCount++;
+			 }
+			 if (dArea > 75.0)
+			 {
+				 nMacroChunksCount++;
+			 }
+			 if (dArea > 120.0)
+			 {
+				 nSuperChunksCount++;
+			 }
+			 if (dArea > 200.0)
+			 {
+				 nUltraChunksCount++;
+			 }
+			 if (dMaj > 16.0 && dRatio > 2.8)
+			 {
+				 nDryFiberCount++;
+			 }
+		 }
+		 double dLargeDebrisRatio = (double)nLargeDebrisCount / (nRawDetectedNum + EPSINON);
+
+		 ParaRange pSSpermRange = getSpermParaRangeIter(pSSpermInfor, nSpermIndex, nStatus);
+		 if (0 == nStatus)
+		 {
+			 break;
+		 }
+
+		 // =========================================================================
+		 // 方案 A 静态第一帧分级判别规则（严格保证：只抓真风干，绝不误伤新鲜死精与低活弱精）
+		 // =========================================================================
+
+		 // 差异点实测数据对比（断崖式鸿沟）：
+		 // 真正风干干涸片(100023)：area>120 巨斑达 134 个，area>200 达 56 个，拉丝纤维达 92 个，大碎片比例达 7.3%~20.9%
+		 // 新鲜完全死精片(000)：死精自然小凝集，area>120 仅 4 个，area>200 严格为 0 个，拉丝纤维仅 23 个，大碎片比例仅 0.5%
+		 // 新鲜活精片(029)：area>120 仅 7 个，area>200 严格为 0 个，纤维仅 21 个，大碎片比例仅 1.0%
+
+		 /*nSuperChunksCount = 面积>120 的巨型风干结晶块
+		    nUltraChunksCount = 面积>200 的超大盐析结痂块 (干片专属)
+		    nDryFiberCount   = 长轴>16 且 扁长比>2.8 的干燥拉丝纤维结晶
+		    nMacroChunksCount = 面积>75 的聚合大斑块
+		    nLargeDebrisCount = 面积>50 且 长轴>14 的显著大块，大碎片 (避免单个精子或死精微小粘连被计入)
+			dLargeDebrisRatio = nLargeDebrisCount / nRawDetectedNum 大碎片比例
+			下列if 条件里，只要 5 条任一命中 → `nSampleType=1`（干涸候选）
+		*/
+		 // 标本干涸初筛分级机制：
+		 // 捕捉重度风干结晶大斑块（如 100023 样本：大碎片占比达 7.3%~20.9%，超大拉丝/斑块密集）
+		 if ( (nSuperChunksCount >= 30) || 
+		      (nUltraChunksCount >= 10) || 
+		      (nDryFiberCount >= 30) || 
+		      (nMacroChunksCount >= 25 && dLargeDebrisRatio > 0.04) || 
+		      (dLargeDebrisRatio > 0.05) ||
+		      (pSSpermRange.dAreaAve > 55.0) )
+		 {
+			 nSampleType = 1; // 标记疑似干涸候选（交由后续多帧动态分析最终裁决）
+		 }
+		 // 2. 标粒初筛（仅当尺寸极度一致，且极度接近正圆时）
+		 else if (pSSpermRange.dShapeRatio < 1.03 && (pSSpermRange.dAreaAve >= 10 && pSSpermRange.dAreaAve <= 35) && (pSSpermRange.dAreaMax - pSSpermRange.dAreaMin < 10))
+		 {
+			 nSampleType = 3; // 标粒候选（交由后续判定）
+		 }
+		 // 3. 红细胞初筛（巨大近圆目标）
+		 else if (pSSpermRange.dAreaAve > 45 && pSSpermRange.dShapeRatio < 1.15)
+		 {
+			 nSampleType = 4; // 红细胞候选
+		 }
+		 // 4. 所有其他样本（包含：常规精液、洗涤精子、无活力死精），宽窗默认放行
+		 else
+		 {
+			 nSampleType = 2; // 新鲜/正常人精（进入运动分析与详细统计）
+		 }
 
 	 } while (0);
 
@@ -7633,7 +7816,7 @@ void updateSpermRange(ParaRange *pSAveSpermRange, const int nSampleType)
 	ParaRange paraRangeTemp1 = {40, 110, 75, 9, 34, 21, 3.4, 9, 6.5, 3.3};//干涸人精
 
 	// 新鲜人精  容纳膨胀变大、短轴变粗、形状近圆的洗涤精子
-	ParaRange paraRangeTemp2 = {4, 45, 18.0, 2.2, 12.0, 5.5, 2.0, 6.5, 3.8, 1.00};
+	ParaRange paraRangeTemp2 = {4, 45, 18.0, 2.3, 12.0, 5.5, 2.0, 6.5, 3.8, 1.00};
 	//新鲜人精  同步动物宽窗版本，略扩大区间，处理 type2 过了但仍漏检的（“刚死/微干”）的大尺寸精子
 	// ParaRange paraRangeTemp2 = {10, 30, 18.0, 3.0, 9, 5.5, 2.0, 5.5, 3.8, 1.20};
 
@@ -9049,15 +9232,13 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 	// 1. 真实活动精子数（由动力学达标的 A+B+C 轨迹决定）
 	int nNumABCTemp = nNumClassA + nNumClassB + nNumClassC;
 	
-	// 样本级全局抗噪熔断一：
-	// 全死精图即使有噪点突破，直线精子数也极低(nNumSL <= 3)，且直线平均速度极低(< 15 um/s)
-	// 活精图直线数有 38 个、速度近 40 um/s，完全不可能触发
+	// 样本级全局抗噪熔断一（加固版）：
+	// 死精/干涸片即使有噪点突破，直线精子数也极少(nNumSL <= 2)，且直线平均速度极低(< 18.0 um/s)
+	// 活精图(如 8% 活力)直线精子达数十个、直线速度近 40 um/s，完全不可能误触发
 	if (nNumABCTemp > 0)
 	{
 		double dCurrentMeanVSL = dataOut->dAveVSL / (double)nNumABCTemp;
-		// #define SPERM_SAMPLE_MIN_SL     3       // 样本最小直线运动精子数(死精闪烁全图通常<=2，活精达38+)
-		// #define SPERM_SAMPLE_SL_VSL_MIN 15.0    // [um/s] 样本直线运动有效均速阈值
-		if (dataOut->nNumSL <= SPERM_SAMPLE_MIN_SL && dCurrentMeanVSL < SPERM_SAMPLE_SL_VSL_MIN)
+		if (dataOut->nNumSL <= 2 && dCurrentMeanVSL < 18.0)
 		{
 			nNumClassA = 0;
 			nNumClassB = 0;
@@ -9123,8 +9304,14 @@ int classifyTraceSperm(TraceInfor *pSSpermTraceInfor, int nTraceIndex, int nImgF
 		// 条件3：全片检测到的活动目标平均直线推进速度极低 (dAveVSL < 12.0 um/s)
 		// #define SPERM_SAMPLE_NOISE_GATE 3.0     // [%] 样本活力绝对门限：全片若<3%通常为假活力底噪，直接清零
     	// #define SPERM_SAMPLE_AVE_VSL_MIN 12.0   // [um/s] 全片活动精子平均直线速度绝对下限
-		bool bIsGhostMotionSample = (dataOut->dActiveSpermRatio < SPERM_SAMPLE_NOISE_GATE) ||
-									(dataOut->nNumSL == 0 && dataOut->nActiveSpermNum < 15) ||
+		// 样本级全局抗噪熔断二（加固版）：
+		// 条件1：整片活动比例极低 (< 2.0%)
+		// 条件2：整片无任何直线运动精子 (nNumSL == 0) 且总活动数 < 30 个（典型散斑闪烁特征）
+		// 条件3：直线精子数极少 (nNumSL <= 2) 且直线平均速度低于 18.0 um/s（彻底截断 001 干枯片 27 个散乱噪点伪活力）
+		// 条件4：全片检测到的活动目标平均直线推进速度极低 (dAveVSL < 12.0 um/s)
+		bool bIsGhostMotionSample = (dataOut->dActiveSpermRatio < 2.0) ||
+									(dataOut->nNumSL == 0 && dataOut->nActiveSpermNum < 30) ||
+									(dataOut->nNumSL <= 2 && dataOut->dAveVSL / (nNumActiveTrace + EPSINON) < 18.0) ||
 									(dataOut->nActiveSpermNum > 0 && (dataOut->dAveVSL / (nNumActiveTrace + EPSINON)) < SPERM_SAMPLE_AVE_VSL_MIN);
 
     if (bIsGhostMotionSample)
