@@ -1,7 +1,9 @@
-package com.isperm.qc;
+package com.join.qc;
 
 import android.content.Context;
+import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.text.TextUtils;
@@ -12,28 +14,23 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 
 /**
- * iSperm Medical USB 硬件级介质身份提取器
- * =======================================
- * 专门用于从 Android 5.1.1 及其 Linux 内核中提取 USB 存储介质的物理硬件身份。
+ * QC USB 介质硬件身份采集器 (高可靠加固版)
  *
- * 【硬件防复制核心原则】：
- * 1. 严禁使用 FAT32 卷标（Volume Label，用户可以在 Windows 右键重命名）。
- * 2. 严禁使用普通文本文件中的编号（可被复制）。
- * 3. 严禁仅依赖 FAT32 卷序列号（Volume Serial Number，格式化或克隆软件可轻易伪造）。
- *
- * 【物理身份提取路径】：
- * 1. Android UsbManager 硬件级序列号 (UsbDevice.getSerialNumber()，API 21+ 支持)。
- * 2. Linux sysfs 内核节点：/sys/bus/usb/devices/.../serial (USB 主控芯片出厂硬件烧录唯一码)。
- * 3. USB 硬件三元组联合指纹：VendorID(VID) + ProductID(PID) + Hardware Serial Number。
- *
- * 当用户将 U 盘内的全部文件拷贝到另一个普通的 FAT32 U 盘时，另一个 U 盘拥有完全不同的物理芯片硬件序列号，
- * 系统将计算出不同的 usb_hardware_id，导致官方签发的设备绑定授权文件无法匹配而拒绝导入！
+ * 核心机制：
+ * 1. 深度采集插入系统的 USB Mass Storage (0x08) 物理芯片出厂序列号与 VID/PID。
+ * 2. 多级探测链条：
+ *    - 优先匹配：通过 /proc/mounts 精准定位挂载点对应的底层 block 设备 (如 sda/sdb)，
+ *      再沿 sysfs (/sys/block/sda/device) 反向追溯到真实的 USB 总线节点，直接读取对应的 serial、idVendor、idProduct。
+ *    - 次级匹配：遍历 /sys/bus/usb/devices，通过精准的 0x08 Mass Storage 接口过滤找出对应设备。
+ *    - Android UsbManager 增强：带接口过滤（UsbConstants.USB_CLASS_MASS_STORAGE = 8），并打印详尽遍历诊断日志。
+ * 3. 规避 Android 权限截断（如 device.getSerialNumber() 在未申请 USB 授权时返回 null 或 unknown），
+ *    sysfs 直接读取硬件节点具有免弹窗权限优势。
  */
 public class QcUsbIdentity {
 
@@ -46,7 +43,7 @@ public class QcUsbIdentity {
      * USB 介质硬件识别结果
      */
     public static class UsbHardwareInfo {
-        public final String hardwareId;    // 规范化的 USB 硬件身份，例如 "USB-HW-090C-1000-AA0401270001"
+        public final String hardwareId;    // 规范化的 USB 硬件身份，例如 "USB-HW-090C-2000-45345SDFS21200010001"
         public final String serialNumber;  // 物理芯片出厂序列号
         public final int vendorId;         // VID
         public final int productId;        // PID
@@ -80,39 +77,134 @@ public class QcUsbIdentity {
      * @return 提取到的 USB 硬件身份对象
      */
     public static UsbHardwareInfo getUsbHardwareInfo(Context context, File usbMountFolder) {
-        String sysfsSerial = findSerialFromSysfs(usbMountFolder);
-        int vid = 0;
-        int pid = 0;
+        Log.i(TAG, "==== 开始提取 USB 物理芯片硬件指纹 ====");
+        Log.i(TAG, "输入挂载路径: " + (usbMountFolder != null ? usbMountFolder.getAbsolutePath() : "null"));
 
-        // 尝试通过 Android UsbManager 枚举外部大容量存储设备
+        String finalSerial = null;
+        int finalVid = 0;
+        int finalPid = 0;
+        boolean reliable = false;
+
+        // =====================================================================
+        // 通道 1 (最精准)：从挂载路径反查 /sys/block/*/device 指向的 USB 物理节点
+        // 挂载点 -> /dev/block/vold/public:8,1 或 /dev/block/sda1 -> /sys/block/sda -> USB 设备节点
+        // =====================================================================
+        SysfsUsbDev sysDev = findUsbFromMountFolder(usbMountFolder);
+        if (sysDev != null && !TextUtils.isEmpty(sysDev.serial)) {
+            Log.i(TAG, "[通道1-挂载溯源命中] 成功定位 USB 节点: " + sysDev.devDir.getName() +
+                    ", VID=0x" + Integer.toHexString(sysDev.vid) +
+                    ", PID=0x" + Integer.toHexString(sysDev.pid) +
+                    ", SN=" + sysDev.serial);
+            finalSerial = sysDev.serial;
+            finalVid = sysDev.vid;
+            finalPid = sysDev.pid;
+            reliable = true;
+        }
+
+        // =====================================================================
+        // 通道 2 (sysfs 全局搜索)：遍历 /sys/bus/usb/devices，只提取 Class 0x08 存储设备
+        // =====================================================================
+        if (TextUtils.isEmpty(finalSerial)) {
+            Log.i(TAG, "[通道1未命中] 启动 [通道2-sysfs存储类扫描]...");
+            SysfsUsbDev scannedDev = scanSysfsMassStorage();
+            if (scannedDev != null && !TextUtils.isEmpty(scannedDev.serial)) {
+                Log.i(TAG, "[通道2-sysfs扫描命中] 找到存储设备: " + scannedDev.devDir.getName() +
+                        ", VID=0x" + Integer.toHexString(scannedDev.vid) +
+                        ", PID=0x" + Integer.toHexString(scannedDev.pid) +
+                        ", SN=" + scannedDev.serial);
+                finalSerial = scannedDev.serial;
+                finalVid = scannedDev.vid;
+                finalPid = scannedDev.pid;
+                reliable = true;
+            }
+        }
+
+        // =====================================================================
+        // 通道 3 (Android UsbManager)：带严密的 MassStorage(0x08) 过滤与详尽诊断日志
+        // =====================================================================
         if (context != null) {
+            Log.i(TAG, "启动 [通道3-UsbManager 枚举与诊断]...");
             try {
                 UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
                 if (usbManager != null) {
                     HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
                     if (deviceList != null && !deviceList.isEmpty()) {
+                        Log.i(TAG, "系统当前总线共检测到 " + deviceList.size() + " 个 USB 设备，开始详细诊断遍历:");
+                        List<UsbDevice> storageCandidates = new ArrayList<>();
+
                         for (UsbDevice device : deviceList.values()) {
-                            // 查找大容量存储类设备 (Interface Class 8: USB Mass Storage, 或设备自身类)
-                            boolean isMassStorage = false;
+                            boolean hasMassStorageIf = false;
+                            StringBuilder ifClasses = new StringBuilder("[");
+
                             for (int i = 0; i < device.getInterfaceCount(); i++) {
-                                if (device.getInterface(i).getInterfaceClass() == 8) {
-                                    isMassStorage = true;
-                                    break;
+                                UsbInterface uif = device.getInterface(i);
+                                int ifClass = uif.getInterfaceClass();
+                                ifClasses.append(String.format("0x%02X ", ifClass));
+                                if (ifClass == UsbConstants.USB_CLASS_MASS_STORAGE) { // 0x08
+                                    hasMassStorageIf = true;
+                                }
+                            }
+                            ifClasses.append("]");
+
+                            String devSerial = "";
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                try {
+                                    devSerial = device.getSerialNumber();
+                                } catch (SecurityException se) {
+                                    devSerial = "<PERMISSION_DENIED>";
                                 }
                             }
 
-                            if (isMassStorage || deviceList.size() == 1) {
-                                vid = device.getVendorId();
-                                pid = device.getProductId();
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                                    String devSerial = device.getSerialNumber();
-                                    if (!TextUtils.isEmpty(devSerial) && !"unknown".equalsIgnoreCase(devSerial)) {
-                                        sysfsSerial = devSerial.trim();
-                                    }
-                                }
-                                break;
+                            Log.i(TAG, String.format(Locale.US,
+                                    "  -> 设备 [%s]: VID=0x%04X, PID=0x%04X, DevClass=0x%02X, Interfaces=%s, SN='%s', 是存储设备=%b",
+                                    device.getDeviceName(), device.getVendorId(), device.getProductId(),
+                                    device.getDeviceClass(), ifClasses.toString(), devSerial, hasMassStorageIf));
+
+                            if (hasMassStorageIf) {
+                                storageCandidates.add(device);
                             }
                         }
+
+                        // 如果通过 UsbManager 找到了 MassStorage 候选设备
+                        if (!storageCandidates.isEmpty()) {
+                            // 优先取有合法序列号的，若无则取第一个
+                            UsbDevice chosen = storageCandidates.get(0);
+                            for (UsbDevice dev : storageCandidates) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                    try {
+                                        String sn = dev.getSerialNumber();
+                                        if (!TextUtils.isEmpty(sn) && !"unknown".equalsIgnoreCase(sn)) {
+                                            chosen = dev;
+                                            break;
+                                        }
+                                    } catch (Throwable ignored) {
+                                    }
+                                }
+                            }
+
+                            Log.i(TAG, "UsbManager 锁定 Mass Storage 存储设备: " + chosen.getDeviceName() +
+                                    ", VID=0x" + Integer.toHexString(chosen.getVendorId()) +
+                                    ", PID=0x" + Integer.toHexString(chosen.getProductId()));
+
+                            if (finalVid == 0) finalVid = chosen.getVendorId();
+                            if (finalPid == 0) finalPid = chosen.getProductId();
+
+                            if (TextUtils.isEmpty(finalSerial) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                try {
+                                    String devSerial = chosen.getSerialNumber();
+                                    if (!TextUtils.isEmpty(devSerial) && !"unknown".equalsIgnoreCase(devSerial)) {
+                                        finalSerial = devSerial.trim();
+                                        reliable = true;
+                                    }
+                                } catch (Throwable t) {
+                                    Log.w(TAG, "从 chosen UsbDevice 获取 SerialNumber 失败: " + t.getMessage());
+                                }
+                            }
+                        } else {
+                            Log.w(TAG, "UsbManager 遍历完毕，未发现任何 interfaceClass == 0x08 的设备！");
+                        }
+                    } else {
+                        Log.w(TAG, "UsbManager.getDeviceList() 为空或无权限返回！");
                     }
                 }
             } catch (Throwable t) {
@@ -120,28 +212,111 @@ public class QcUsbIdentity {
             }
         }
 
-        // 综合校验 Serial 的可靠性
-        boolean reliable = true;
-        if (TextUtils.isEmpty(sysfsSerial) || "unknown".equalsIgnoreCase(sysfsSerial) || sysfsSerial.length() < 4) {
-            // 兜底降级方案：从 /sys/block 或 /proc/mounts 提取块设备 UUID/标识
-            sysfsSerial = fallbackBlockIdentity(usbMountFolder);
+        // =====================================================================
+        // 通道 4：终极兜底降级（当所有渠道都无法提取到芯片 serial 时）
+        // =====================================================================
+        if (TextUtils.isEmpty(finalSerial) || "unknown".equalsIgnoreCase(finalSerial) || finalSerial.length() < 4) {
+            finalSerial = fallbackBlockIdentity(usbMountFolder);
             reliable = false;
+            Log.w(TAG, "警告：未能提取到 USB 物理芯片序列号，降级使用块设备标识: " + finalSerial);
         }
 
-        String vidHex = String.format(Locale.US, "%04X", vid & 0xFFFF);
-        String pidHex = String.format(Locale.US, "%04X", pid & 0xFFFF);
-        String cleanSerial = sysfsSerial.replaceAll("[^a-zA-Z0-9_-]", "").toUpperCase(Locale.US);
+        String vidHex = String.format(Locale.US, "%04X", finalVid & 0xFFFF);
+        String pidHex = String.format(Locale.US, "%04X", finalPid & 0xFFFF);
+        String cleanSerial = finalSerial.replaceAll("[^a-zA-Z0-9_-]", "").toUpperCase(Locale.US);
 
         String hardwareId = "USB-HW-" + vidHex + "-" + pidHex + "-" + cleanSerial;
-        Log.i(TAG, "成功读取 USB 物理硬件指纹: " + hardwareId + " (可靠出厂码=" + reliable + ")");
+        Log.i(TAG, "==== 最终确定的 USB 物理硬件指纹: " + hardwareId + " (高可靠芯片出厂码=" + reliable + ") ====");
 
-        return new UsbHardwareInfo(hardwareId, cleanSerial, vid, pid, reliable);
+        return new UsbHardwareInfo(hardwareId, cleanSerial, finalVid, finalPid, reliable);
     }
 
     /**
-     * 遍历 Linux /sys/bus/usb/devices 读取物理 USB 芯片的 serial 硬件节点
+     * 内部承载 sysfs 解析出的 USB 设备属性
      */
-    private static String findSerialFromSysfs(File folder) {
+    private static class SysfsUsbDev {
+        File devDir;
+        int vid;
+        int pid;
+        String serial;
+
+        SysfsUsbDev(File devDir, int vid, int pid, String serial) {
+            this.devDir = devDir;
+            this.vid = vid;
+            this.pid = pid;
+            this.serial = serial;
+        }
+    }
+
+    /**
+     * 根据挂载文件夹反查 /sys/block/* 对应的 USB 底层设备节点
+     */
+    private static SysfsUsbDev findUsbFromMountFolder(File folder) {
+        if (folder == null) return null;
+        String mountPath = folder.getAbsolutePath();
+        String devNode = null;
+
+        // 1. 从 /proc/mounts 找出该挂载点对应的设备节点 (如 /dev/block/vold/public:8,1 或 /dev/block/sda1)
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("/proc/mounts"), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split("\\s+");
+                if (parts.length >= 2) {
+                    if (mountPath.startsWith(parts[1]) && parts[0].startsWith("/dev/")) {
+                        devNode = parts[0];
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "读取 /proc/mounts 异常: " + t.getMessage());
+        }
+
+        if (TextUtils.isEmpty(devNode)) {
+            return null;
+        }
+
+        Log.i(TAG, "从挂载点匹配到底层设备节点: " + devNode);
+
+        // 2. 尝试从设备节点名 (如 sda1 -> sda) 追溯 /sys/class/block/sda/device
+        String nodeName = new File(devNode).getName();
+        String blockName = nodeName.replaceAll("\\d+$", ""); // sda1 -> sda
+        File blockDir = new File("/sys/class/block/" + blockName);
+        if (!blockDir.exists()) {
+            blockDir = new File("/sys/class/block/" + nodeName);
+        }
+
+        if (blockDir.exists()) {
+            try {
+                // 读取 canonicalPath 追溯父级 USB 目录
+                File cur = blockDir.getCanonicalFile();
+                while (cur != null && !"/".equals(cur.getAbsolutePath())) {
+                    File idVendor = new File(cur, "idVendor");
+                    File idProduct = new File(cur, "idProduct");
+                    File serial = new File(cur, "serial");
+
+                    if (idVendor.exists() && idProduct.exists() && serial.exists()) {
+                        String vidStr = readFirstLine(idVendor);
+                        String pidStr = readFirstLine(idProduct);
+                        String snStr = readFirstLine(serial);
+                        int vid = parseHex(vidStr);
+                        int pid = parseHex(pidStr);
+                        if (!TextUtils.isEmpty(snStr) && !"unknown".equalsIgnoreCase(snStr)) {
+                            return new SysfsUsbDev(cur, vid, pid, snStr.trim());
+                        }
+                    }
+                    cur = cur.getParentFile();
+                }
+            } catch (Throwable t) {
+                Log.w(TAG, "追溯 /sys/class/block canonical 路径异常: " + t.getMessage());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 遍历 /sys/bus/usb/devices，通过 0x08 存储类接口寻找插入的 U 盘
+     */
+    private static SysfsUsbDev scanSysfsMassStorage() {
         File usbBus = new File("/sys/bus/usb/devices");
         if (!usbBus.exists() || !usbBus.isDirectory()) {
             return null;
@@ -151,40 +326,59 @@ public class QcUsbIdentity {
         if (devDirs == null) return null;
 
         for (File devDir : devDirs) {
+            File idVendor = new File(devDir, "idVendor");
+            File idProduct = new File(devDir, "idProduct");
             File serialFile = new File(devDir, "serial");
-            if (serialFile.exists() && serialFile.canRead()) {
-                String serial = readFirstLine(serialFile);
-                if (!TextUtils.isEmpty(serial) && !"unknown".equalsIgnoreCase(serial)) {
-                    // 确认该 USB 节点下存在 block 存储设备驱动 (如 1-1/1-1:1.0/hostX/targetX...)
-                    if (hasStorageInterface(devDir)) {
-                        return serial.trim();
-                    }
+
+            if (idVendor.exists() && idProduct.exists() && serialFile.exists() && serialFile.canRead()) {
+                String sn = readFirstLine(serialFile);
+                if (TextUtils.isEmpty(sn) || "unknown".equalsIgnoreCase(sn)) {
+                    continue;
+                }
+
+                // 严密检查：该 USB 设备下必须包含 Class 08 (Mass Storage) 接口
+                if (hasStorageInterface(devDir)) {
+                    int vid = parseHex(readFirstLine(idVendor));
+                    int pid = parseHex(readFirstLine(idProduct));
+                    return new SysfsUsbDev(devDir, vid, pid, sn.trim());
                 }
             }
         }
         return null;
     }
 
+    /**
+     * 严格检查该 USB 设备目录下是否存在 bInterfaceClass == 08 的子接口节点或 host* 驱动节点
+     */
     private static boolean hasStorageInterface(File usbDevDir) {
-        // 简单探测目录下是否存在 host* 或包含 bInterfaceClass 为 08 的子接口
         File[] subFiles = usbDevDir.listFiles();
         if (subFiles == null) return false;
+
+        boolean foundMassStorageClass = false;
+        boolean foundHostDir = false;
+
         for (File sf : subFiles) {
-            if (sf.getName().startsWith("host") || sf.getName().contains(":")) {
+            String name = sf.getName();
+            // 子接口格式通常形如 3-3.2:1.0
+            if (name.contains(":")) {
                 File ifClass = new File(sf, "bInterfaceClass");
                 if (ifClass.exists()) {
                     String cls = readFirstLine(ifClass);
-                    if ("08".equals(cls)) { // 08 代表 Mass Storage
-                        return true;
+                    // 08 代表 Mass Storage 大容量存储类
+                    if ("08".equalsIgnoreCase(cls)) {
+                        foundMassStorageClass = true;
+                        break;
                     }
                 }
+            } else if (name.startsWith("host")) {
+                foundHostDir = true;
             }
         }
-        return true; // 若难以判断，默认返回 true
+        return foundMassStorageClass || foundHostDir;
     }
 
     private static String fallbackBlockIdentity(File folder) {
-        // 尝试从 /proc/mounts 找出该挂载点对应的设备节点
+        if (folder == null) return "FF500000USB";
         String mountPath = folder.getAbsolutePath();
         String devNode = "";
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("/proc/mounts"), StandardCharsets.UTF_8))) {
@@ -197,25 +391,32 @@ public class QcUsbIdentity {
                     }
                 }
             }
-        } catch (Throwable t) {
-            // ignore
+        } catch (Throwable ignored) {
         }
 
         if (!TextUtils.isEmpty(devNode)) {
             String devName = new File(devNode).getName(); // 例如 sda1
-            // 尝试读取 sysfs 中的分区块 ID
             File uuidFile = new File("/sys/class/block/" + devName);
             if (uuidFile.exists()) {
                 return devName.toUpperCase(Locale.US);
             }
         }
+        return "FF500000USB";
+    }
 
-        return "GENERIC-USB-DEV";
+    private static int parseHex(String s) {
+        if (TextUtils.isEmpty(s)) return 0;
+        try {
+            return Integer.parseInt(s.trim(), 16);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private static String readFirstLine(File file) {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-            return br.readLine();
+            String line = br.readLine();
+            return line != null ? line.trim() : null;
         } catch (Throwable t) {
             return null;
         }
